@@ -1,0 +1,23 @@
+{
+  "name": "@tab402/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@noble/curves": "2.4.0",
+    "@x402/core": "2.28.0",
+    "canonicalize": "5.1.0",
+    "jose": "6.2.12",
+    "ulid": "3.0.2"
+  },
+  "devDependencies": {
+    "@tab402/config": "workspace:*"
+  }
+}

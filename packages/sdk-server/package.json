@@ -1,0 +1,23 @@
+{
+  "name": "@tab402/sdk-server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@tab402/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "hono": ">=4.10.0"
+  },
+  "devDependencies": {
+    "@tab402/config": "workspace:*",
+    "hono": "4.13.12"
+  }
+}

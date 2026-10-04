@@ -1,0 +1,14 @@
+packages:
+  - apps/*
+  - packages/*
+  - tests/*
+  - scripts
+
+allowBuilds:
+  esbuild: true
+  # Its postinstall only checks for the native binary, which ships as an optional dependency.
+  "@swc/core": false
+
+minimumReleaseAgeExclude:
+  - msw@3.0.2
+  - lucide-react@1.51.0

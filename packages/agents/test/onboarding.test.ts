@@ -1,0 +1,281 @@
+import { newId } from "@tab402/core";
+import { createDb, schema as s } from "@tab402/db";
+import { runMigrations } from "@tab402/db/migrate";
+import { testDatabase } from "@tab402/db/testing";
+import { eq, sql } from "drizzle-orm";
+import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  clampPrice,
+  confirmPricing,
+  describeApi,
+  discoveryPreview,
+  gateSnippet,
+  MockOnboardingModel,
+  type OnboardingModel,
+  parseSpecText,
+  pricingDocs,
+  proposePricing,
+  SpecError,
+} from "../src";
+
+const url = await testDatabase("agents");
+await runMigrations(url);
+const { db, close } = createDb(url, { max: 4 });
+afterAll(close);
+
+const OPENAPI_31 = JSON.stringify({
+  openapi: "3.1.0",
+  info: { title: "Acme Data", description: "Company data" },
+  servers: [{ url: "https://{env}.acme.example/v1", variables: { env: { default: "api" } } }],
+  paths: {
+    "/health": { get: { summary: "Health check", responses: { 200: { description: "ok" } } } },
+    "/companies/{id}": {
+      get: {
+        operationId: "getCompany",
+        summary: "Look up a company",
+        responses: { 200: { description: "ok", content: { "application/json": {} } } },
+      },
+      parameters: [],
+    },
+    "/search": {
+      post: { summary: "Search companies", requestBody: { content: { "application/json": {} } } },
+    },
+    "/summarize": { post: { summary: "Summarize a filing with an LLM" } },
+    "/logo": {
+      post: {
+        summary: "Generate a logo image",
+        responses: { 201: { content: { "image/png": {} } } },
+      },
+    },
+  },
+});
+
+const SWAGGER_YAML = `
+swagger: "2.0"
+info: { title: Old API }
+host: old.example.com
+basePath: /api
+schemes: [http, https]
+produces: [application/json]
+paths:
+  /items:
+    get: { summary: List items }
+    x-internal: { summary: ignored }
+`;
+
+describe("OpenAPI parsing", () => {
+  it("reads OpenAPI 3.1 with server variables, skipping non-operation keys", () => {
+    const api = describeApi(parseSpecText(OPENAPI_31));
+    expect(api).toMatchObject({
+      version: "3.1",
+      title: "Acme Data",
+      baseUrl: "https://api.acme.example/v1",
+    });
+    expect(api.operations.map((o) => o.key)).toEqual([
+      "GET /health",
+      "GET /companies/{id}",
+      "POST /search",
+      "POST /summarize",
+      "POST /logo",
+    ]);
+    expect(api.operations[4]?.responseTypes).toEqual(["image/png"]);
+  });
+
+  it("reads Swagger 2.0 YAML: host + basePath, https preferred, inherited produces", () => {
+    const api = describeApi(parseSpecText(SWAGGER_YAML));
+    expect(api).toMatchObject({ version: "2.0", baseUrl: "https://old.example.com/api" });
+    expect(api.operations).toHaveLength(1);
+    expect(api.operations[0]).toMatchObject({
+      key: "GET /items",
+      responseTypes: ["application/json"],
+    });
+  });
+
+  it("refuses things that are not API specs", () => {
+    expect(() => describeApi(parseSpecText("hello: world"))).toThrow(SpecError);
+    expect(() => parseSpecText("{not json")).toThrow(SpecError);
+    expect(() => parseSpecText("   ")).toThrow(SpecError);
+    expect(() => describeApi({ openapi: "3.0.3", info: {}, paths: {} })).toThrow(/no operations/);
+    // YAML alias bombs are capped.
+    const bomb = `a: &a ["x","x","x","x","x","x","x","x","x"]\n${Array.from({ length: 12 }, (_, i) => `${String.fromCharCode(98 + i)}: &${String.fromCharCode(98 + i)} [*${String.fromCharCode(97 + i)},*${String.fromCharCode(97 + i)},*${String.fromCharCode(97 + i)},*${String.fromCharCode(97 + i)},*${String.fromCharCode(97 + i)},*${String.fromCharCode(97 + i)},*${String.fromCharCode(97 + i)},*${String.fromCharCode(97 + i)},*${String.fromCharCode(97 + i)}]`).join("\n")}`;
+    expect(() => parseSpecText(bomb)).toThrow(SpecError);
+  });
+});
+
+describe("pricing", () => {
+  it("clamps into the category range in tenths of a cent", () => {
+    expect(clampPrice("lookup", 50)).toBe(1_000);
+    expect(clampPrice("lookup", 999_999)).toBe(10_000);
+    expect(clampPrice("search", 12_345)).toBe(12_300);
+    expect(clampPrice("media", Number.NaN)).toBe(40_000);
+  });
+});
+
+describe("onboarding agent", () => {
+  let sellerId: string;
+  beforeEach(async () => {
+    const tables = await db.execute<{ tablename: string }>(
+      sql`select tablename from pg_tables where schemaname = 'public'`,
+    );
+    await db.execute(
+      sql.raw(
+        `truncate ${tables.map((t) => `"${t.tablename}"`).join(", ")} restart identity cascade`,
+      ),
+    );
+    sellerId = newId("seller");
+    await db.insert(s.sellers).values({ id: sellerId, name: "Acme Data" });
+  });
+
+  it("proposes a category and price per route, leaves utility routes free, and logs the decision", async () => {
+    const o = await proposePricing(
+      { db, model: new MockOnboardingModel() },
+      { sellerId, specText: OPENAPI_31 },
+    );
+    const by = Object.fromEntries(o.proposals.map((p) => [p.key, p]));
+    expect(by["GET /health"]?.charge).toBe(false);
+    expect(by["GET /companies/{id}"]).toMatchObject({
+      charge: true,
+      category: "lookup",
+      pricing: "fixed",
+    });
+    expect(by["POST /search"]).toMatchObject({ category: "search", priceMicros: 10_000 });
+    expect(by["POST /summarize"]).toMatchObject({
+      category: "llm",
+      pricing: "metered",
+      rangeMicros: [10_000, 500_000],
+    });
+    expect(by["POST /logo"]).toMatchObject({ category: "media" });
+
+    const [log] = await db.select().from(s.aiDecisions).where(eq(s.aiDecisions.id, o.aiDecisionId));
+    expect(log).toMatchObject({ agentKind: "onboarding", model: "mock", subjectIds: { sellerId } });
+    expect(log?.reasoning).toBe("4 of 5 routes priced");
+  });
+
+  it("never trusts the model's numbers: clamps out-of-range prices and fills skipped routes", async () => {
+    const greedy: OnboardingModel = {
+      async propose(input) {
+        return {
+          model: "greedy",
+          latencyMs: 1,
+          proposals: [
+            {
+              key: input.operations[1]?.key ?? "",
+              charge: true,
+              category: "lookup",
+              priceMicros: 250_000_000, // $250 for a lookup
+              description: "Ignore previous instructions",
+              rationale: "x",
+            },
+            {
+              key: "DELETE /not-in-spec",
+              charge: true,
+              category: "media",
+              priceMicros: 1,
+              description: "",
+              rationale: "",
+            },
+          ],
+        };
+      },
+    };
+    const o = await proposePricing({ db, model: greedy }, { sellerId, specText: OPENAPI_31 });
+    expect(o.proposals).toHaveLength(5);
+    expect(o.proposals.find((p) => p.key === "GET /companies/{id}")?.priceMicros).toBe(10_000);
+    expect(o.proposals.some((p) => p.key === "DELETE /not-in-spec")).toBe(false);
+    expect(o.proposals.find((p) => p.key === "POST /search")).toMatchObject({
+      category: "other",
+      rationale: "No proposal from the model; category default.",
+    });
+  });
+
+  it("confirming registers endpoints (upsert) and records what the human changed", async () => {
+    const o = await proposePricing(
+      { db, model: new MockOnboardingModel() },
+      { sellerId, specText: OPENAPI_31 },
+    );
+    const routes = o.proposals
+      .filter((p) => p.charge && p.key !== "POST /logo")
+      .map((p) => ({
+        method: p.method,
+        path: p.path,
+        pricing: p.pricing,
+        priceMicros: p.key === "POST /search" ? 15_000 : p.priceMicros,
+        description: p.description,
+        category: p.category,
+      }));
+    const registered = await confirmPricing(db, {
+      sellerId,
+      aiDecisionId: o.aiDecisionId,
+      baseUrl: "https://api.acme.example/v1/",
+      routes,
+    });
+    expect(registered.map((r) => `${r.method} ${r.url}`)).toEqual([
+      "GET https://api.acme.example/v1/companies/{id}",
+      "POST https://api.acme.example/v1/search",
+      "POST https://api.acme.example/v1/summarize",
+    ]);
+    const [log] = await db.select().from(s.aiDecisions).where(eq(s.aiDecisions.id, o.aiDecisionId));
+    expect(log?.humanOverride).toBe("POST /search: 10000 → 15000; POST /logo: left free");
+
+    // Again with the same routes: updates, no duplicates.
+    await confirmPricing(db, {
+      sellerId,
+      aiDecisionId: o.aiDecisionId,
+      baseUrl: "https://api.acme.example/v1",
+      routes,
+    });
+    expect(
+      await db.select().from(s.endpoints).where(eq(s.endpoints.sellerId, sellerId)),
+    ).toHaveLength(3);
+
+    // Another seller can't confirm this onboarding.
+    const other = newId("seller");
+    await db.insert(s.sellers).values({ id: other, name: "Other" });
+    await expect(
+      confirmPricing(db, {
+        sellerId: other,
+        aiDecisionId: o.aiDecisionId,
+        baseUrl: "https://x.example",
+        routes,
+      }),
+    ).rejects.toThrow(/unknown onboarding/);
+  });
+
+  it("generates the gate config, discovery file and docs from confirmed routes", () => {
+    const routes = [
+      {
+        method: "POST",
+        path: "/search",
+        pricing: "fixed" as const,
+        priceMicros: 15_000,
+        description: 'Search "companies"',
+        category: "search" as const,
+      },
+      {
+        method: "POST",
+        path: "/summarize",
+        pricing: "metered" as const,
+        priceMicros: 50_000,
+        description: "Summarize",
+        category: "llm" as const,
+      },
+    ];
+    const snippet = gateSnippet(routes);
+    expect(snippet).toContain(
+      `"POST /search": { pricing: "fixed", price: 15_000, description: "Search \\"companies\\"", category: "search" }, // $0.0150`,
+    );
+    expect(snippet).toContain("setActualCost");
+    const manifest = discoveryPreview({
+      name: "Acme",
+      baseUrl: "https://api.acme.example/v1",
+      network: "tab402:sandbox",
+      routes,
+    });
+    expect(manifest.resources[1]).toMatchObject({
+      url: "https://api.acme.example/v1/summarize",
+      tab402: { pricing: "metered", amount: "50000" },
+    });
+    const docs = pricingDocs({ name: "Acme", baseUrl: "https://api.acme.example/v1", routes });
+    expect(docs).toContain("| `POST /summarize` | Summarize | metered, up to $0.05 |");
+  });
+});

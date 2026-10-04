@@ -1,0 +1,26 @@
+node_modules/
+dist/
+.turbo/
+.next/
+coverage/
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+# UI reference only — never part of the Tab402 repo
+banking-main/
+
+# Internal planning docs (not part of the public repo)
+architecture_*.md
+techstacks_*.md
+workplan.md
+docs/spikes.md
+AGENTS.md
+
+# Day-1 PayPal sandbox script state (tokens, order ids)
+.sandbox-state.json
+
+# Playwright output
+test-results/
+playwright-report/

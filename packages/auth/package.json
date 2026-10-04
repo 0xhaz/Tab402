@@ -1,0 +1,28 @@
+{
+  "name": "@tab402/auth",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "generate-schema": "auth generate --config src/cli-config.ts --adapter drizzle --dialect postgresql --output ../db/src/auth-schema.ts --yes"
+  },
+  "dependencies": {
+    "@better-auth/cimd": "1.7.7",
+    "@better-auth/mcp": "1.7.7",
+    "@better-auth/oauth-provider": "1.7.7",
+    "@better-auth/passkey": "1.7.7",
+    "@tab402/core": "workspace:*",
+    "@tab402/db": "workspace:*",
+    "better-auth": "1.7.7",
+    "drizzle-orm": "0.45.3"
+  },
+  "devDependencies": {
+    "@tab402/config": "workspace:*",
+    "auth": "1.7.7"
+  }
+}

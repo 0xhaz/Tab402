@@ -1,0 +1,27 @@
+{
+  "name": "@tab402/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/client": "2.3.0",
+    "@tab402/agents": "workspace:*",
+    "@tab402/api": "workspace:*",
+    "@tab402/config": "workspace:*",
+    "@tab402/core": "workspace:*",
+    "@tab402/db": "workspace:*",
+    "@tab402/demo-sellers": "workspace:*",
+    "@tab402/guard": "workspace:*",
+    "@tab402/ledger": "workspace:*",
+    "@tab402/mcp-buyer": "workspace:*",
+    "@tab402/notify": "workspace:*",
+    "@tab402/paypal": "workspace:*",
+    "@tab402/sdk-client": "workspace:*",
+    "@tab402/worker": "workspace:*",
+    "drizzle-orm": "0.45.3"
+  }
+}

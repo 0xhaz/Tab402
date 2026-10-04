@@ -1,0 +1,20 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "globalEnv": ["NODE_ENV"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"]
+    },
+    "test": {
+      "env": ["DATABASE_URL_TEST", "DATABASE_URL_E2E", "TAB402_MASTER_KEY"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    }
+  }
+}

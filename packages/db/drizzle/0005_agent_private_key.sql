@@ -1,0 +1,1 @@
+ALTER TYPE "public"."secret_kind" ADD VALUE 'agent_private_key';

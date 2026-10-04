@@ -1,0 +1,21 @@
+# Local Postgres 18 (matches Render). Port 5433 so it doesn't clash with a host Postgres on 5432.
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: tab402
+      POSTGRES_PASSWORD: tab402
+      POSTGRES_DB: tab402
+    ports:
+      - "5433:5432"
+    volumes:
+      - tab402-pg:/var/lib/postgresql
+      - ./docker/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tab402 -d tab402"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  tab402-pg:

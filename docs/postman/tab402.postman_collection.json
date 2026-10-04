@@ -1,0 +1,1178 @@
+{
+  "info": {
+    "name": "Tab402 API",
+    "description": "x402 facilitator for fiat tabs, seller and buyer APIs. Generated from /openapi.json by scripts/postman/build.ts — do not edit by hand.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Walkthrough: wallet → 402 → paid → settled",
+      "description": "Run in order. The paid call (step 5) needs an ES256-signed voucher, which Postman's sandbox can't produce: run `npx tsx --env-file=.env scripts/demo/pay.ts` or ask Claude through the Tab402 MCP server, then continue with step 6.",
+      "item": [
+        {
+          "name": "1. Facilitator: supported schemes",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{baseUrl}}/supported"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('tab scheme', () => pm.expect(pm.response.json().kinds[0].scheme).to.eql('tab'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. Buyer: start PayPal wallet setup (vault without purchase)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/wallet/setup",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"returnUrl\": \"{{webUrl}}/wallet\",\n  \"cancelUrl\": \"{{webUrl}}/wallet\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Open the returned approval URL in a browser and approve with a PayPal sandbox buyer."
+          }
+        },
+        {
+          "name": "3. Seller: register a priced route",
+          "request": {
+            "method": "PUT",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sellerKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/endpoints",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"endpoints\": [\n    {\n      \"method\": \"POST\",\n      \"url\": \"{{sellerUrl}}/v1/summarize\",\n      \"pricing\": \"fixed\",\n      \"price\": \"10000\",\n      \"description\": \"Summarize text\",\n      \"category\": \"llm\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "4. Agent: call without paying → 402 + PAYMENT-REQUIRED",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{sellerUrl}}/v1/summarize",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Tab402 lets agents pay per call.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('402 Payment Required', () => pm.response.to.have.status(402));",
+                  "const required = JSON.parse(atob(pm.response.headers.get('PAYMENT-REQUIRED')));",
+                  "pm.test('tab scheme offered', () => pm.expect(required.accepts.map(a => a.scheme)).to.include('tab'));",
+                  "console.log('PAYMENT-REQUIRED', required);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5. (SDK) Pay and call — see folder description",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{baseUrl}}/health",
+            "description": "Placeholder: run scripts/demo/pay.ts."
+          }
+        },
+        {
+          "name": "6. Directory: find the route",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{baseUrl}}/directory?q=summarize"
+          }
+        },
+        {
+          "name": "7. Discovery: the seller's /.well-known/x402",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "url": "{{sellerUrl}}/.well-known/x402"
+          }
+        },
+        {
+          "name": "8. Seller: events (charge, settlement, payout)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sellerKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/events?limit=50"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ok', () => pm.response.to.have.status(200));",
+                  "console.log(pm.response.json().data.map(e => e.type));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Buyers",
+      "item": [
+        {
+          "name": "Register an agent's public key",
+          "request": {
+            "method": "POST",
+            "description": "Clients generate their P-256 key pair locally and register only the public key. Creates the agent if the name is new.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agent-keys",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent-keys"
+              ],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agentName\": \"Claude Code\",\n  \"publicJwk\": {\n    \"kty\": \"EC\",\n    \"crv\": \"P-256\",\n    \"x\": \"string\",\n    \"y\": \"string\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Start saving a PayPal wallet",
+          "request": {
+            "method": "POST",
+            "description": "Returns PayPal's approval URL. After the buyer approves, call /wallet/complete.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/wallet/setup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "wallet",
+                "setup"
+              ],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"returnUrl\": \"https://example.com\",\n  \"cancelUrl\": \"https://example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Finish saving the wallet after PayPal approval",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/wallet/complete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "wallet",
+                "complete"
+              ],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mandateId\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Top up the prepaid balance from the saved wallet",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/balance/top-up",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "balance",
+                "top-up"
+              ],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Flag a charge (bad output, failed call)",
+          "request": {
+            "method": "POST",
+            "description": "Holds the charge out of the next capture until the seller resolves it.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/charges/:id/flag",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "charges",
+                ":id",
+                "flag"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{id}}"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Directory",
+      "item": [
+        {
+          "name": "Search paid APIs",
+          "request": {
+            "method": "GET",
+            "description": "Every active priced endpoint, ranked by how many query words match, then by paid calls in the last 30 days.",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/directory",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "directory"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "string",
+                  "disabled": true
+                },
+                {
+                  "key": "category",
+                  "value": "string",
+                  "disabled": true
+                },
+                {
+                  "key": "seller",
+                  "value": "string",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "disabled": true
+                },
+                {
+                  "key": "offset",
+                  "value": "0",
+                  "disabled": true
+                }
+              ],
+              "variable": []
+            }
+          }
+        },
+        {
+          "name": "Categories in use",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/directory/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "directory",
+                "categories"
+              ],
+              "variable": []
+            }
+          }
+        },
+        {
+          "name": "A seller's /.well-known/x402 manifest",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/directory/sellers/:id/x402",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "directory",
+                "sellers",
+                ":id",
+                "x402"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{id}}"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Facilitator",
+      "item": [
+        {
+          "name": "Schemes and networks this facilitator handles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/supported",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "supported"
+              ],
+              "variable": []
+            }
+          }
+        },
+        {
+          "name": "Check a voucher without committing anything",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sellerKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/verify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "verify"
+              ],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"x402Version\": 2,\n  \"paymentPayload\": {\n    \"x402Version\": 0,\n    \"accepted\": {\n      \"scheme\": \"string\",\n      \"network\": \"tab402:sandbox\",\n      \"asset\": \"string\",\n      \"amount\": \"string\",\n      \"payTo\": \"string\",\n      \"maxTimeoutSeconds\": 0,\n      \"extra\": {}\n    },\n    \"payload\": {}\n  },\n  \"paymentRequirements\": {\n    \"scheme\": \"string\",\n    \"network\": \"tab402:sandbox\",\n    \"asset\": \"string\",\n    \"amount\": \"string\",\n    \"payTo\": \"string\",\n    \"maxTimeoutSeconds\": 0,\n    \"extra\": {}\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Record the charge on the buyer's tab",
+          "request": {
+            "method": "POST",
+            "description": "Money moves later in batch settlement. For metered pricing pass the actual cost in `amount`.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sellerKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/settle",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settle"
+              ],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "\"string\"",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sellers",
+      "item": [
+        {
+          "name": "Issue a 402 quote for a paid endpoint",
+          "request": {
+            "method": "POST",
+            "description": "Every quote is recorded, powering 402 → paid conversion analytics.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sellerKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/quotes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "quotes"
+              ],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"method\": \"POST\",\n  \"url\": \"http://localhost:4200/v1/summarize\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Register or update priced endpoints",
+          "request": {
+            "method": "PUT",
+            "description": "Upserts by (method, URL). Used by the gate middleware's route config and by onboarding.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sellerKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/endpoints",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "endpoints"
+              ],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"endpoints\": [\n    {\n      \"method\": \"string\",\n      \"url\": \"https://example.com\",\n      \"pricing\": \"fixed\",\n      \"price\": \"10000\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Refund a charge",
+          "request": {
+            "method": "POST",
+            "description": "Before capture the charge just drops off the tab; after capture the buyer is credited and the seller's net is clawed back from the next payout.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sellerKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/charges/:id/refund",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "charges",
+                ":id",
+                "refund"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{id}}"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Resolve a flagged charge",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sellerKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/charges/:id/resolve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "charges",
+                ":id",
+                "resolve"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{id}}"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refund\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Set where payouts go",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sellerKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/seller/payout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "seller",
+                "payout"
+              ],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"receiver\": \"seller@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Set the webhook URL",
+          "request": {
+            "method": "PUT",
+            "description": "Events are POSTed with `Tab402-Signature: t=<unix>,v1=<hex HMAC-SHA256(secret, t + \".\" + body)>`. The signing secret is returned when first created or rotated, and never again.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sellerKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/seller/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "seller",
+                "webhook"
+              ],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "List events (polling alternative to webhooks)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sellerKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "after",
+                  "value": "string",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "100",
+                  "disabled": true
+                }
+              ],
+              "variable": []
+            }
+          }
+        },
+        {
+          "name": "Your /.well-known/x402 manifest",
+          "request": {
+            "method": "GET",
+            "description": "Generated from your registered endpoints. The SDK serves it at /.well-known/x402 on your API; `origin` limits it to endpoints on that host, as the draft requires.",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sellerKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/seller/x402",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "seller",
+                "x402"
+              ],
+              "query": [
+                {
+                  "key": "origin",
+                  "value": "https://example.com",
+                  "disabled": true
+                }
+              ],
+              "variable": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Spend guard",
+      "item": [
+        {
+          "name": "Check a quote against the buyer's policy before paying",
+          "request": {
+            "method": "POST",
+            "description": "Deterministic rules first; grey-zone purchases go to a small model (1.5 s timeout, fails to \"ask\"); amounts above the approval threshold need a human. Authenticate with `Tab402-Agent-Signature` (agent) or a buyer API key plus `keyId`. Price always comes from the seller's quote.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/guard/decide",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "guard",
+                "decide"
+              ],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quoteId\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "The buyer's spending policy",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/policy",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "policy"
+              ],
+              "variable": []
+            }
+          }
+        },
+        {
+          "name": "Update the spending policy",
+          "request": {
+            "method": "PUT",
+            "description": "Bumps the policy version, which clears cached guard decisions. Agents can never call this — buyer API key or dashboard only.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/policy",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "policy"
+              ],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dailyBudget\": \"string\",\n  \"perCallMax\": \"string\",\n  \"approvalThreshold\": \"string\",\n  \"allowlist\": [\n    \"string\"\n  ],\n  \"blocklist\": [\n    \"string\"\n  ],\n  \"categories\": [\n    \"string\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Purchases waiting for the buyer's OK",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/approvals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "approvals"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "pending",
+                  "disabled": true
+                }
+              ],
+              "variable": []
+            }
+          }
+        },
+        {
+          "name": "Approve or decline a pending purchase",
+          "request": {
+            "method": "POST",
+            "description": "Stand-in for the passkey approval page (Phase 5).",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/approvals/:id/decide",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "approvals",
+                ":id",
+                "decide"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{id}}"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"approve\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4000"
+    }
+  ]
+}
