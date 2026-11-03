@@ -50,8 +50,8 @@ Everything is recorded on the hosted site, https://tab402-web.onrender.com, so j
 **Screen:**
 1. Turn on Ask me before every purchase and click Summarize the note.
 2. The amber card appears and the push notification slides in. Click it, approve with Touch ID, then click Run again after approving.
-3. Click Make a $0.02 sub-budget, then Summarize with the sub-budget three times. The third is refused.
-4. Turn Ask me before every purchase off again.
+3. Turn Ask me before every purchase off again, or every sub-budget call would stop for approval too.
+4. Click Make a $0.02 sub-budget (button 5), then Summarize with the sub-budget (button 6) three times. The first two pay and the third is refused.
 
 > The buyer decides how much freedom the agent has. With "ask me first" on, the next purchase stops and asks. A push arrives on my laptop, I approve it with my passkey, and the agent finishes the call. Agents can also hand out small sub-budgets. This one has two cents, so the third call is refused. Anything unusual, like a new seller or a sudden spike, goes to a spend guard that can approve, deny, or ask me.
 
