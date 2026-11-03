@@ -1,5 +1,5 @@
 # Tab402 on Render: one Blueprint for the whole stack.
-#   Dashboard → New → Blueprint → pick this repo. Render asks for every `sync: false` value once.
+#   Dashboard → New → Blueprint → pick this repo. Then add the secrets listed under tab402-secrets.
 #
 #   tab402-web        Next.js app (sign-in, wallet, approvals, receipts, dashboards)
 #   tab402-api        facilitator API: quotes, verify, settle, spend guard, PayPal webhooks
@@ -32,6 +32,14 @@ envVarGroups:
       - key: DEMO_SELLERS_URL
         value: https://tab402-sellers.onrender.com
 
+  # Render ignores `sync: false` inside environment groups, so the secrets below are added by
+  # hand once: Environment Groups → tab402-secrets → Edit. Blueprint syncs keep them.
+  #   PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, ANTHROPIC_API_KEY
+  #   DEMO_SELLER_API_KEY  node -e "console.log('t402_sk_'+require('crypto').randomBytes(32).toString('base64url'))"
+  #   DEMO_BUYER_API_KEY   same command with t402_bk_
+  #   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY   npx tsx scripts/vapid.ts
+  #   AG_STUDIO_LICENSE_KEY (optional)
+  #   PAYPAL_WEBHOOK_ID    after creating the webhook for https://tab402-api.onrender.com/webhooks/paypal
   - name: tab402-secrets
     envVars:
       - key: NODE_ENV
@@ -43,32 +51,10 @@ envVarGroups:
         generateValue: true
       - key: BETTER_AUTH_SECRET
         generateValue: true
-      - key: PAYPAL_CLIENT_ID
-        sync: false
-      - key: PAYPAL_CLIENT_SECRET
-        sync: false
-      # Set after creating the webhook for https://tab402-api.onrender.com/webhooks/paypal
-      - key: PAYPAL_WEBHOOK_ID
-        sync: false
-      - key: ANTHROPIC_API_KEY
-        sync: false
-      # node -e "console.log('t402_sk_'+require('crypto').randomBytes(32).toString('base64url'))"
-      - key: DEMO_SELLER_API_KEY
-        sync: false
-      # Same command with t402_bk_
-      - key: DEMO_BUYER_API_KEY
-        sync: false
       - key: DEMO_LLM
         value: anthropic
-      # npx tsx scripts/vapid.ts
-      - key: VAPID_PUBLIC_KEY
-        sync: false
-      - key: VAPID_PRIVATE_KEY
-        sync: false
       - key: VAPID_SUBJECT
         value: mailto:ops@tab402.dev
-      - key: AG_STUDIO_LICENSE_KEY
-        sync: false
 
 services:
   - type: web
