@@ -12,32 +12,22 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Brand } from "@/components/brand";
 import { FlowDiagram } from "@/components/landing/flow-diagram";
+import { PaymentCompare } from "@/components/landing/payment-compare";
 import { PayPalProducts } from "@/components/landing/paypal-products";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { getSession } from "@/lib/server";
 
 export const metadata: Metadata = {
-  title: { absolute: "Tab402 — pay-per-call for AI agents, settled on PayPal" },
+  title: { absolute: "Tab402: pay-per-call for AI agents, settled on PayPal" },
   description:
-    "AI agents pay APIs by the cent over HTTP 402. Tab402 keeps the tab and settles it in one PayPal charge, then pays sellers through PayPal Payouts.",
+    "AI agents pay for APIs by the cent over HTTP 402. Tab402 keeps a tab, settles it in one PayPal charge and pays sellers with PayPal Payouts.",
 };
 
 /** Real numbers from the PayPal sandbox run. */
 const CALLS = 300;
 const PER_CALL_FEE = 0.49 + 0.0349 * 0.01; // PayPal fixed + percentage fee on one $0.01 charge
 const usd = (n: number) => `$${n.toFixed(2)}`;
-
-function Stat({ value, label }: { value: string; label: string }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <span className="text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
-        {value}
-      </span>
-      <span className="text-sm text-muted-foreground">{label}</span>
-    </div>
-  );
-}
 
 function Feature({
   icon: Icon,
@@ -49,10 +39,14 @@ function Feature({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-2">
-      <Icon className="size-5 text-primary" aria-hidden />
-      <h3 className="font-semibold">{title}</h3>
-      <p className="text-sm text-muted-foreground">{children}</p>
+    <div className="group flex gap-3 rounded-xl border bg-card p-4 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md">
+      <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+        <Icon className="size-4" aria-hidden />
+      </span>
+      <div className="flex flex-col gap-0.5">
+        <h3 className="font-semibold leading-tight">{title}</h3>
+        <p className="text-sm text-muted-foreground">{children}</p>
+      </div>
     </div>
   );
 }
@@ -117,6 +111,9 @@ export default async function WelcomePage() {
             <a href="#how" className="hover:text-foreground">
               How it works
             </a>
+            <a href="#compare" className="hover:text-foreground">
+              Why a tab
+            </a>
             <a href="#paypal" className="hover:text-foreground">
               PayPal products
             </a>
@@ -149,12 +146,11 @@ export default async function WelcomePage() {
               Built on PayPal · x402-compatible
             </span>
             <h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
-              Let AI agents pay for APIs by the cent — settled on PayPal.
+              Let AI agents pay for APIs by the cent, settled on PayPal.
             </h1>
             <p className="max-w-xl text-lg text-muted-foreground text-pretty">
-              Agents pay per call over HTTP 402. Tab402 keeps a running tab, charges the buyer's
-              saved PayPal wallet once for hundreds of calls, and pays sellers through PayPal
-              Payouts. No crypto wallet, no card typed into a chatbot.
+              Each call goes on a tab. PayPal charges the buyer once for hundreds of calls and pays
+              the seller out.
             </p>
             <div className="flex flex-wrap gap-3">
               <Button asChild size="lg">
@@ -174,15 +170,16 @@ export default async function WelcomePage() {
           </div>
         </section>
 
-        <section className="border-y bg-muted/30">
-          <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
-            <Stat
-              value="$0.49"
-              label="PayPal's fixed fee on every charge — more than a whole API call"
-            />
-            <Stat value="300 → 1" label="paid calls settled as one PayPal capture in sandbox" />
-            <Stat value="$0.59" label="total PayPal fee on that $3.00 tab, instead of $147" />
-            <Stat value="≈ 7 ms" label="added per paid call; PayPal is only called at settlement" />
+        <section id="compare" className="border-y bg-muted/30">
+          <div className="mx-auto flex max-w-6xl scroll-mt-20 flex-col gap-8 px-4 py-20 sm:px-6">
+            <div className="flex max-w-2xl flex-col gap-3">
+              <h2 className="text-3xl font-semibold tracking-tight">Why a tab?</h2>
+              <p className="text-muted-foreground">
+                A PayPal charge costs at least $0.49, which is 49 times a one-cent API call. Drag
+                the slider to compare.
+              </p>
+            </div>
+            <PaymentCompare />
           </div>
         </section>
 
@@ -193,8 +190,7 @@ export default async function WelcomePage() {
           <div className="flex max-w-2xl flex-col gap-3">
             <h2 className="text-3xl font-semibold tracking-tight">How it works</h2>
             <p className="text-muted-foreground">
-              Per-call payments never touch PayPal. Agents sign cumulative vouchers on a tab; PayPal
-              moves real money only when the tab settles — so a one-cent call costs a one-cent call.
+              Each arrow is labeled with the PayPal API it uses. PayPal only moves money in step 3.
             </p>
           </div>
           <FlowDiagram />
@@ -203,53 +199,48 @@ export default async function WelcomePage() {
         <section id="paypal" className="border-t bg-muted/20">
           <div className="mx-auto flex max-w-6xl scroll-mt-20 flex-col gap-8 px-4 py-20 sm:px-6">
             <div className="flex max-w-2xl flex-col gap-3">
-              <h2 className="text-3xl font-semibold tracking-tight">
-                The PayPal family, one adapter
-              </h2>
+              <h2 className="text-3xl font-semibold tracking-tight">PayPal products in Tab402</h2>
               <p className="text-muted-foreground">
-                Funding and payout rails sit behind one interface, so each PayPal product slots in
-                without touching the protocol. Five run Tab402 today; the rest are next.
+                Every product plugs into the same funding or payout adapter. Hover or tap one for
+                details.
               </p>
             </div>
             <PayPalProducts />
           </div>
         </section>
 
-        <section className="mx-auto grid max-w-6xl gap-10 px-4 py-20 sm:px-6 md:grid-cols-2 lg:grid-cols-3">
-          <Feature icon={ShieldCheck} title="A spend guard on every purchase">
-            Budgets, per-call caps and allowlists are enforced in code; grey-zone purchases get a
-            second look from Claude Haiku against the agent's stated intent. Fails closed.
-          </Feature>
-          <Feature icon={Fingerprint} title="Approve big buys with a passkey">
-            Anything above your threshold waits for you: Face ID or Touch ID on the approval page,
-            single-use, never a password.
-          </Feature>
-          <Feature icon={Bell} title="Push to your phone">
-            Installable app with push notifications: "Approve $2.50 for PixelForge?", payouts
-            landed, or a PayPal charge that needs attention.
-          </Feature>
-          <Feature icon={Bot} title="Works in Claude today">
-            Add one MCP URL to Claude and it can search the directory, pay per call within budget
-            and show receipts — OAuth sign-in, no keys to paste.
-          </Feature>
-          <Feature icon={Sparkles} title="Paste your OpenAPI, start charging">
-            Sellers paste a spec; Claude proposes a price per route, the seller confirms, and the
-            gate config, discovery file and docs are generated.
-          </Feature>
-          <Feature icon={Gauge} title="Revenue you can explain">
-            Every dollar is earned, collected or paid out — never blurred. Ask "why did revenue drop
-            on Tuesday?" in the AG Studio dashboard.
-          </Feature>
+        <section className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-20 sm:px-6">
+          <h2 className="text-3xl font-semibold tracking-tight">Other features</h2>
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+            <Feature icon={ShieldCheck} title="Spend guard">
+              Budgets and caps checked on every call. Claude Haiku reviews borderline buys.
+            </Feature>
+            <Feature icon={Fingerprint} title="Passkey approval">
+              Purchases over your limit wait for Face ID or Touch ID.
+            </Feature>
+            <Feature icon={Bell} title="Push alerts">
+              Approval requests and payouts show up on your phone.
+            </Feature>
+            <Feature icon={Bot} title="Works in Claude">
+              Add one MCP URL and sign in with OAuth.
+            </Feature>
+            <Feature icon={Sparkles} title="OpenAPI onboarding">
+              Paste a spec and Claude suggests a price per route.
+            </Feature>
+            <Feature icon={Gauge} title="Revenue analytics">
+              Ask the dashboard why revenue dropped on Tuesday.
+            </Feature>
+          </div>
         </section>
 
         <section className="border-t">
           <div className="mx-auto flex max-w-6xl flex-col items-start gap-6 px-4 py-16 sm:px-6 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-col gap-2">
               <h2 className="text-2xl font-semibold tracking-tight">
-                Your agents already speak 402. Now they can pay with PayPal.
+                Your agents already speak 402. Let them pay with PayPal.
               </h2>
               <p className="text-muted-foreground">
-                Sandbox only — use a PayPal sandbox account to try it.
+                Runs on the PayPal sandbox. Use a sandbox account to try it.
               </p>
             </div>
             <div className="flex flex-wrap gap-3">

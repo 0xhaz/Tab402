@@ -56,7 +56,7 @@ function Lane({ title, note, steps }: { title: string; note: string; steps: Step
   );
 }
 
-/** How a paid call flows, and how the tab settles on PayPal — every PayPal API call labelled. */
+/** How a paid call flows and how the tab settles on PayPal, with the PayPal API on each arrow. */
 export function FlowDiagram() {
   return (
     <figure
@@ -65,14 +65,14 @@ export function FlowDiagram() {
     >
       <Lane
         title="1 · Once"
-        note="The buyer saves their PayPal wallet — no purchase, no card typed."
+        note="The buyer saves a PayPal wallet. Nothing is charged yet."
         steps={[
-          { node: { title: "Buyer", detail: "Taps Connect PayPal on phone or desktop" } },
+          { node: { title: "Buyer", detail: "Taps Connect PayPal" } },
           {
             via: { label: "JS SDK v6 save flow", api: "popup · redirect on mobile" },
             node: {
               title: "PayPal approval",
-              detail: "Buyer logs in and approves saving the wallet",
+              detail: "Buyer logs in and approves",
               paypal: true,
             },
           },
@@ -80,7 +80,7 @@ export function FlowDiagram() {
             via: { label: "Setup → payment token", api: "Vault API v3" },
             node: {
               title: "Tab402 mandate",
-              detail: "Vault token sealed server-side, plus a budget and policy",
+              detail: "Encrypted vault token plus a budget",
               accent: true,
             },
           },
@@ -88,26 +88,26 @@ export function FlowDiagram() {
       />
       <Lane
         title="2 · Every call"
-        note="Milliseconds, a cent at a time — no PayPal fee per request."
+        note="A cent at a time, with no PayPal fee per call."
         steps={[
           {
             node: {
               title: "AI agent",
-              detail: "Claude via the Tab402 MCP server, or any HTTP client",
+              detail: "Claude over MCP, or any HTTP client",
             },
           },
           {
             via: { label: "HTTP 402 → signed voucher", api: "x402 tab scheme" },
             node: {
               title: "Seller's API",
-              detail: "One line of middleware quotes a price per route",
+              detail: "Middleware quotes a price per route",
             },
           },
           {
             via: { label: "verify · settle", api: "≈ 7 ms gate overhead" },
             node: {
               title: "Tab402 facilitator",
-              detail: "Spend guard checks budget and intent; the call joins the buyer's tab",
+              detail: "Checks the budget and adds the call to the tab",
               accent: true,
             },
           },
@@ -115,20 +115,20 @@ export function FlowDiagram() {
       />
       <Lane
         title="3 · Settlement"
-        note="Hundreds of calls become one PayPal charge, then one payout."
+        note="Hundreds of calls settle as one PayPal charge."
         steps={[
           {
             node: {
               title: "Buyer's tab",
-              detail: "Due at $10 or after 24 h (or a prepaid top-up)",
+              detail: "Due at $10 or after 24 h",
               accent: true,
             },
           },
           {
             via: { label: "One merchant-initiated capture", api: "Orders API v2 + vault_id" },
             node: {
-              title: "Tab402 PayPal business account",
-              detail: "Merchant of record; fee and net come back in the response",
+              title: "Tab402 PayPal account",
+              detail: "Merchant of record for the charge",
               paypal: true,
             },
           },
@@ -136,7 +136,7 @@ export function FlowDiagram() {
             via: { label: "Weekly batch", api: "Payouts API" },
             node: {
               title: "Seller's PayPal",
-              detail: "Paid in their own PayPal account; webhooks confirm every step",
+              detail: "Webhooks confirm each payout",
               paypal: true,
             },
           },

@@ -1,7 +1,7 @@
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { confirmPricing, MockOnboardingModel, proposePricing } from "@tab402/agents";
 import { schema as s } from "@tab402/db";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { API, createHarness, MCP, SELLERS, SELLERS2 } from "./harness";
 
@@ -179,6 +179,44 @@ describe("buyer MCP server", () => {
     expect(parsed<unknown[]>(await b.call("list_receipts"))).toHaveLength(0);
     const agents = await h.db.select().from(s.agents);
     expect(agents.map((x) => x.name).sort()).toEqual(["coder", "researcher"]);
+  });
+
+  it("a revoked agent stays revoked (no fresh key); 'Allow again' re-admits it with a new key", async () => {
+    const { call } = await connect({ agent: "Claude Code" });
+    expect((await call("call_paid", summarize)).isError).toBeFalsy();
+    const [first] = await h.db.select().from(s.agentKeys);
+    // Dashboard → Revoke.
+    await h.db
+      .update(s.agentKeys)
+      .set({ status: "revoked", revokedAt: new Date() })
+      .where(eq(s.agentKeys.id, first?.id ?? ""));
+    h.keys.invalidate(first?.id ?? "");
+    const refused = await call("call_paid", summarize);
+    expect(refused.isError).toBe(true);
+    expect(out(refused)).toContain('access for agent "Claude Code" was revoked');
+    expect(await h.db.select().from(s.agentKeys)).toHaveLength(1); // no replacement key minted
+
+    // Dashboard → Allow again: the revoked key's private key is destroyed, so a new one is issued.
+    await h.db
+      .delete(s.merchantSecrets)
+      .where(
+        and(
+          eq(s.merchantSecrets.ownerId, first?.id ?? ""),
+          eq(s.merchantSecrets.kind, "agent_private_key"),
+        ),
+      );
+    expect((await call("call_paid", summarize)).isError).toBeFalsy();
+    const keys = await h.db.select().from(s.agentKeys);
+    expect(keys.map((k) => k.status).sort()).toEqual(["active", "revoked"]);
+  });
+
+  it("a frozen agent key is kept frozen, not swapped for a fresh one", async () => {
+    const { call } = await connect({ agent: "Claude Code" });
+    expect((await call("call_paid", summarize)).isError).toBeFalsy();
+    await h.db.update(s.agentKeys).set({ status: "frozen" });
+    h.keys.invalidate((await h.db.select().from(s.agentKeys))[0]?.id ?? "");
+    expect((await call("call_paid", summarize)).isError).toBe(true);
+    expect(await h.db.select().from(s.agentKeys)).toHaveLength(1);
   });
 
   it("over the threshold: URL elicitation → buyer approves on the page → the call completes", async () => {

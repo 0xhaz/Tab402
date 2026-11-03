@@ -5,14 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "next dev --port 3000",
-    "build": "next build",
-    "start": "next start --port 3000",
+    "build": "NODE_ENV=production next build",
+    "start": "NODE_ENV=production next start --port 3000",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.131.0",
     "@better-auth/oauth-provider": "1.7.7",
     "@hookform/resolvers": "5.9.1",
+    "@modelcontextprotocol/client": "2.3.0",
     "@paypal/paypal-js": "11.2.0",
     "@paypal/react-paypal-js": "10.5.2",
     "@serwist/turbopack": "9.5.12",

@@ -17,6 +17,7 @@ techstacks_*.md
 workplan.md
 docs/spikes.md
 AGENTS.md
+demo-script.md
 
 # Day-1 PayPal sandbox script state (tokens, order ids)
 .sandbox-state.json
@@ -24,3 +25,7 @@ AGENTS.md
 # Playwright output
 test-results/
 playwright-report/
+
+# Research notes and reports (internal)
+research_notes/
+reports/

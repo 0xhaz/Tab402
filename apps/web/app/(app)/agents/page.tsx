@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { db, requireBuyer } from "@/lib/server";
-import { RevokeButton } from "./revoke-button";
+import { AllowAgainButton, RevokeButton } from "./revoke-button";
 
 export const metadata = { title: "Agents & keys" };
 
@@ -16,6 +16,8 @@ export default async function AgentsPage() {
       key: s.agentKeys,
       agent: s.agents.name,
       spent: sql<string>`(select coalesce(sum(${s.charges.amountMicros}), 0)::text from ${s.charges} where ${s.charges.agentKeyId} = ${s.agentKeys.id})`,
+      // Keys the Tab402 MCP server holds for the agent (vs. keys an SDK client keeps itself).
+      held: sql<boolean>`exists (select 1 from ${s.merchantSecrets} where ${s.merchantSecrets.ownerId} = ${s.agentKeys.id} and ${s.merchantSecrets.kind} = 'agent_private_key')`,
     })
     .from(s.agentKeys)
     .innerJoin(s.agents, eq(s.agents.id, s.agentKeys.agentId))
@@ -55,6 +57,7 @@ export default async function AgentsPage() {
                 <CardDescription className="font-mono text-xs">{r.key.id}</CardDescription>
               </div>
               {r.key.status === "active" && <RevokeButton keyId={r.key.id} />}
+              {r.key.status === "revoked" && r.held && <AllowAgainButton keyId={r.key.id} />}
             </CardHeader>
             <CardContent className="flex flex-col gap-3 text-sm">
               <p>

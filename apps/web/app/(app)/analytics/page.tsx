@@ -3,14 +3,17 @@ import { PageHeader } from "@/components/page-header";
 import { StudioDashboard } from "@/components/studio-dashboard";
 import { buyerDataset, COLUMNS } from "@/lib/analytics";
 import { buyerSummary } from "@/lib/mobile-analytics";
-import { BUYER_REPORT } from "@/lib/reports";
-import { requireBuyer } from "@/lib/server";
+import { buyerReport } from "@/lib/reports";
+import { db, requireBuyer } from "@/lib/server";
 
 export const metadata = { title: "Analytics" };
 
 export default async function BuyerAnalyticsPage() {
   const { buyer } = await requireBuyer("/analytics");
-  const d = await buyerDataset(buyer.id);
+  const [d, policy] = await Promise.all([
+    buyerDataset(buyer.id),
+    db.query.policies.findFirst({ where: (p, { eq }) => eq(p.buyerId, buyer.id) }),
+  ]);
   return (
     <>
       <PageHeader
@@ -21,7 +24,7 @@ export default async function BuyerAnalyticsPage() {
         licenseKey={process.env.AG_STUDIO_LICENSE_KEY}
         mobile={<MobileSummary {...buyerSummary(d)} />}
         ai={process.env.ANTHROPIC_API_KEY ? "buyer" : undefined}
-        report={BUYER_REPORT}
+        report={buyerReport({ dailyBudget: (policy?.dailyBudgetMicros ?? 10_000_000) / 1e6 })}
         tables={[
           {
             id: "spend",

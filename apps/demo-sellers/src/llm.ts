@@ -7,6 +7,11 @@ export interface Completion {
   outputTokens: number;
 }
 
+/** The model refused this input (its safety checks); the call failed, so nobody is charged. */
+export class LlmRefusal extends Error {
+  override name = "LlmRefusal";
+}
+
 export interface Llm {
   complete(input: { system?: string; prompt: string; maxTokens: number }): Promise<Completion>;
 }
@@ -40,6 +45,9 @@ export class MockLlm implements Llm {
     prompt: string;
     maxTokens: number;
   }): Promise<Completion> {
+    // Lets tests exercise the refusal path the real model can take.
+    if (prompt.includes("[refuse]"))
+      throw new LlmRefusal("Claude declined this input. Try different text.");
     const sentences = prompt.split(/(?<=[.!?])\s+/).filter(Boolean);
     const text = sentences.slice(0, 2).join(" ") || prompt.slice(0, 200);
     const inputTokens = Math.ceil(prompt.length / 4);
@@ -72,7 +80,8 @@ export class AnthropicLlm implements Llm {
       ...(system ? { system } : {}),
       messages: [{ role: "user", content: prompt }],
     });
-    if (response.stop_reason === "refusal") throw new Error("model declined the request");
+    if (response.stop_reason === "refusal")
+      throw new LlmRefusal("Claude declined this input. Try different text.");
     const text = response.content
       .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")
       .map((b) => b.text)

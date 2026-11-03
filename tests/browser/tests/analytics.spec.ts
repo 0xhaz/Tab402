@@ -133,20 +133,33 @@ test("seller and buyer analytics render the pre-built AG Studio reports", async 
   await expect(page.getByText("Revenue by endpoint")).toBeVisible();
   await page.waitForTimeout(1500);
   await page.screenshot({ path: "test-results/seller-analytics.png", fullPage: true });
-  for (const name of ["demand", "payouts"]) {
-    const tab = page.getByText(new RegExp(`^${name}$`, "i")).first();
-    if (await tab.isVisible().catch(() => false)) {
-      await tab.click();
-      await page.waitForTimeout(1500);
-      await page.screenshot({ path: `test-results/seller-${name}.png`, fullPage: true });
-    }
+  // Each report page is reachable from the app's tabs.
+  for (const [name, heading] of [
+    ["demand", "402 → paid, by endpoint"],
+    ["payouts", "Payouts ledger"],
+  ] as const) {
+    await page.getByRole("tab", { name }).click();
+    await expect(page.getByText(heading)).toBeVisible({ timeout: 30_000 });
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: `test-results/seller-${name}.png`, fullPage: true });
   }
+  await page.getByRole("tab", { name: "revenue" }).click();
   expect(logs.filter((l) => l.includes("Fatal"))).toEqual([]);
 
   await page.goto("/analytics");
   await expect(page.getByText("Spend by day, by agent")).toBeVisible({ timeout: 30_000 });
   await page.waitForTimeout(2500);
   await page.screenshot({ path: "test-results/buyer-analytics.png", fullPage: true });
+  await page.getByRole("tab", { name: "spend guard" }).click();
+  await expect(page.getByText("Decision log")).toBeVisible({ timeout: 30_000 });
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: "test-results/buyer-guard.png", fullPage: true });
+  // Dark mode: Studio switches to the dark look with the app.
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto("/selling/analytics");
+  await expect(page.getByText("Revenue by day, by money state")).toBeVisible({ timeout: 30_000 });
+  await page.waitForTimeout(2500);
+  await page.screenshot({ path: "test-results/seller-analytics-dark.png", fullPage: true });
   // No console errors on either dashboard (the trial-license banner used to be 7 of them).
   expect(logs.filter((l) => l.startsWith("[error]") || l.startsWith("[pageerror]"))).toEqual([]);
 });

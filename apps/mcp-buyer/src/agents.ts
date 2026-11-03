@@ -1,7 +1,7 @@
 import { type ChannelState, generateAgentKeyPair, importPrivateJwk, newId } from "@tab402/core";
 import { type Database, openSecret, schema as s, sealSecret } from "@tab402/db";
 import type { ChannelStore } from "@tab402/sdk-client";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 
 export interface HeldKey {
   keyId: string;
@@ -14,6 +14,16 @@ export interface HeldKey {
  * here, private half sealed with the master key, public half registered like any other client
  *. One root key per (buyer, agent name); sub-budgets are child keys.
  */
+/** The buyer revoked this agent in the dashboard; it stays off until they choose "Allow again". */
+export class AgentRevokedError extends Error {
+  override name = "AgentRevokedError";
+  constructor(agentName: string) {
+    super(
+      `Tab402 access for agent "${agentName}" was revoked by the buyer. Ask them to choose "Allow again" under Agents & keys in the Tab402 dashboard.`,
+    );
+  }
+}
+
 export class AgentKeys {
   private readonly cache = new Map<string, HeldKey>();
 
@@ -83,8 +93,10 @@ export class AgentKeys {
       await this.db.insert(s.agents).values({ id, buyerId, name: agentName }).onConflictDoNothing();
       agent = { id, buyerId, name: agentName, createdAt: new Date() };
     }
-    const keys = await this.db
-      .select({ id: s.agentKeys.id })
+    // The newest root key we hold, whatever its status. Only mint a key when there is none: a
+    // revoked key must stop the agent (not be replaced), and a frozen one stays frozen.
+    const [latest] = await this.db
+      .select({ id: s.agentKeys.id, status: s.agentKeys.status })
       .from(s.agentKeys)
       .innerJoin(
         s.merchantSecrets,
@@ -93,16 +105,12 @@ export class AgentKeys {
           eq(s.merchantSecrets.kind, "agent_private_key"),
         ),
       )
-      .where(
-        and(
-          eq(s.agentKeys.agentId, agent.id),
-          eq(s.agentKeys.status, "active"),
-          isNull(s.agentKeys.parentKeyId),
-        ),
-      )
+      .where(and(eq(s.agentKeys.agentId, agent.id), isNull(s.agentKeys.parentKeyId)))
+      .orderBy(desc(s.agentKeys.createdAt))
       .limit(1);
-    const existing = keys[0] ? await this.load(keys[0].id, agent.id) : null;
-    return existing ?? this.create(buyerId, agent.id);
+    if (latest?.status === "revoked") throw new AgentRevokedError(agentName);
+    const held = latest ? await this.load(latest.id, agent.id) : null;
+    return held ?? this.create(buyerId, agent.id);
   }
 
   /** A sub-budget key under `parent` (create_sub_budget). */

@@ -20,10 +20,11 @@ const path = (url: string) => {
 export async function sellerDataset(sellerId: string) {
   const [charges, quotes, guard, payouts] = await Promise.all([
     db
-      .select({ c: s.charges, url: s.endpoints.url, buyer: s.buyers.name })
+      .select({ c: s.charges, url: s.endpoints.url, buyer: s.buyers.name, si: s.settlementItems })
       .from(s.charges)
       .innerJoin(s.endpoints, eq(s.endpoints.id, s.charges.endpointId))
       .innerJoin(s.buyers, eq(s.buyers.id, s.charges.buyerId))
+      .leftJoin(s.settlementItems, eq(s.settlementItems.chargeId, s.charges.id))
       .where(eq(s.charges.sellerId, sellerId))
       .orderBy(desc(s.charges.createdAt))
       .limit(20_000),
@@ -52,7 +53,7 @@ export async function sellerDataset(sellerId: string) {
     q.status === "issued" && q.expiresAt.getTime() < now;
 
   return {
-    charges: charges.map(({ c, url, buyer }) => ({
+    charges: charges.map(({ c, url, buyer, si }) => ({
       charge_id: c.id,
       day: day(c.createdAt),
       endpoint: path(url),
@@ -62,6 +63,10 @@ export async function sellerDataset(sellerId: string) {
       earned: c.state === "earned" ? usd(c.amountMicros) : 0,
       collected: c.state === "collected" ? usd(c.amountMicros) : 0,
       paid_out: c.state === "paid_out" ? usd(c.amountMicros) : 0,
+      // Settled charges only: what PayPal and Tab402 kept, and what reaches the seller.
+      paypal_fee: si ? usd(si.processorFeeMicros) : 0,
+      platform_fee: si ? usd(si.platformFeeMicros) : 0,
+      net: si ? usd(si.netMicros) : 0,
       calls: 1,
     })),
     quotes: quotes.map(({ q, url }) => ({
@@ -96,6 +101,7 @@ export async function sellerDataset(sellerId: string) {
 
 /** Buyer analytics: spend by seller and agent, and what the spend guard did. */
 export async function buyerDataset(buyerId: string) {
+  const today = day(new Date()).getTime();
   const [charges, guard] = await Promise.all([
     db
       .select({ c: s.charges, seller: s.sellers.name, agent: s.agents.name, url: s.endpoints.url })
@@ -125,6 +131,7 @@ export async function buyerDataset(buyerId: string) {
       intent: c.intent ?? "",
       state: c.state.replace("_", " "),
       amount: usd(c.amountMicros),
+      today: day(c.createdAt).getTime() === today ? usd(c.amountMicros) : 0,
       calls: 1,
     })),
     checks: guard.map(({ g, agent }) => ({
@@ -136,6 +143,8 @@ export async function buyerDataset(buyerId: string) {
       intent: g.intent ?? "",
       price: usd(g.amountMicros),
       count: 1,
+      denied: g.outcome === "deny" ? 1 : 0,
+      asked: g.outcome === "ask" ? 1 : 0,
     })),
   };
 }
@@ -155,11 +164,25 @@ export const COLUMNS = {
     "earned",
     "collected",
     "paid_out",
+    "paypal_fee",
+    "platform_fee",
+    "net",
     "calls",
   ],
   quotes: ["quote_id", "day", "endpoint", "outcome", "quotes", "paid", "price"],
   guard: ["day", "outcome", "reason", "decided_by", "endpoint", "price", "count"],
   payouts: ["date", "batch", "amount", "fee", "status"],
-  spend: ["day", "seller", "agent", "endpoint", "intent", "state", "amount", "calls"],
-  checks: ["day", "agent", "outcome", "decided_by", "rule", "intent", "price", "count"],
+  spend: ["day", "seller", "agent", "endpoint", "intent", "state", "amount", "today", "calls"],
+  checks: [
+    "day",
+    "agent",
+    "outcome",
+    "decided_by",
+    "rule",
+    "intent",
+    "price",
+    "count",
+    "denied",
+    "asked",
+  ],
 } as const;

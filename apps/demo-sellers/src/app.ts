@@ -6,7 +6,8 @@ import {
 } from "@tab402/sdk-server";
 import { Hono } from "hono";
 import { z } from "zod";
-import { costMicros, type Llm } from "./llm";
+import { costMicros, type Llm, LlmRefusal } from "./llm";
+import { logger } from "./logger";
 
 /** Our own demo sellers: one fixed-price API and one metered AI-model endpoint. */
 export const DEMO_ROUTES = {
@@ -106,6 +107,13 @@ export function createApp({ gate, llm }: DemoSellerDeps): Hono<{ Variables: Gate
   app.use("/v1/*", tab402Gate({ ...gate, routes: DEMO_ROUTES }));
   app.get("/.well-known/x402", tab402Discovery(gate));
   app.get("/openapi.json", (c) => c.json(demoOpenApi(gate.baseUrl)));
+
+  // A failed model call is a failed API call: a JSON error, and the gate doesn't charge for it.
+  app.onError((err, c) => {
+    if (err instanceof LlmRefusal) return c.json({ error: err.message }, 422);
+    logger.error({ err, path: c.req.path }, "request failed");
+    return c.json({ error: "the model is unavailable, try again" }, 502);
+  });
 
   app.post("/v1/summarize", async (c) => {
     const body = SummarizeBody.safeParse(await c.req.json().catch(() => null));

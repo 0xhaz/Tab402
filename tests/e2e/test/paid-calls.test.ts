@@ -227,6 +227,14 @@ describe("paid calls (Phase 2 exit)", () => {
     expect(res.status).toBe(400);
     expect(await h.db.select().from(s.charges)).toHaveLength(0);
   });
+
+  it("answers a model refusal with a JSON 422 and charges nothing", async () => {
+    const agent = await newAgent();
+    const res = await client(agent).fetch(`${SELLERS}/v1/summarize`, summarize("[refuse] probe"));
+    expect(res.status).toBe(422);
+    expect(await res.json()).toEqual({ error: "Claude declined this input. Try different text." });
+    expect(await h.db.select().from(s.charges)).toHaveLength(0);
+  });
 });
 
 describe("replay and voucher rules", () => {

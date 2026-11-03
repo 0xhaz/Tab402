@@ -200,6 +200,11 @@ export function registerTools(server: McpServer, deps: McpDeps, keys: AgentKeys)
               : bodyText,
         });
       } catch (err) {
+        // Network failure reaching the seller (or Tab402): say where, not just "fetch failed".
+        if (err instanceof TypeError && /fetch failed/i.test(err.message))
+          return fail(
+            `Couldn't reach ${args.url}: the seller may be down or restarting. Check Receipts before retrying.`,
+          );
         if (!(err instanceof PaymentError)) throw err;
         if (err.reason === "approval_required" && err.approval) {
           return needsApproval(

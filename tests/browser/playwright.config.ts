@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { parseEnv } from "node:util";
 import { defineConfig, devices } from "@playwright/test";
@@ -7,6 +8,19 @@ const rootEnv = new URL("../../.env", import.meta.url);
 if (existsSync(rootEnv)) {
   for (const [k, v] of Object.entries(parseEnv(readFileSync(rootEnv, "utf8"))))
     if (k !== "NODE_ENV" && process.env[k] === undefined) process.env[k] = v;
+}
+
+// Our own database, never the dev one: test sign-ups and sellers must not leak into the demo.
+// Always overridden, even if the shell exported the dev DATABASE_URL.
+process.env.DATABASE_URL =
+  process.env.DATABASE_URL_BROWSER ?? "postgres://tab402:tab402@localhost:5433/tab402_browser";
+// Create, migrate and seed it once, in the runner (workers re-read this file).
+if (process.env.TEST_WORKER_INDEX === undefined) {
+  execFileSync(
+    process.execPath,
+    ["--import", "tsx", new URL("./prepare-db.ts", import.meta.url).pathname],
+    { stdio: "inherit", env: process.env },
+  );
 }
 
 /**

@@ -331,6 +331,9 @@ importers:
       '@hookform/resolvers':
         specifier: 5.9.1
         version: 5.9.1(@standard-schema/spec@1.1.0)(react-hook-form@7.89.0(@types/react@19.3.0)(react@19.3.0))(zod@4.6.5)
+      '@modelcontextprotocol/client':
+        specifier: 2.3.0
+        version: 2.3.0
       '@paypal/paypal-js':
         specifier: 11.2.0
         version: 11.2.0

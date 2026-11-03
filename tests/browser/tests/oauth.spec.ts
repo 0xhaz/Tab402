@@ -130,3 +130,27 @@ test("an MCP connector connects with OAuth 2.1 (discovery → DCR → PKCE → c
   });
   expect(bad.status()).toBe(401);
 });
+
+test("native MCP clients (Claude Code, Cursor) can register loopback callbacks; plain http elsewhere is refused", async ({
+  request,
+}) => {
+  const register = (redirect: string) =>
+    request.post("/api/auth/oauth2/register", {
+      data: {
+        client_name: "Claude Code",
+        redirect_uris: [redirect],
+        grant_types: ["authorization_code", "refresh_token"],
+        response_types: ["code"],
+        token_endpoint_auth_method: "none",
+      },
+    });
+  for (const loopback of ["http://localhost:54321/callback", "http://127.0.0.1:54321/callback"]) {
+    const res = await register(loopback);
+    expect(res.status(), loopback).toBeLessThan(300);
+    expect((await res.json()).application_type).toBe("native");
+  }
+  expect(
+    (await (await register("https://claude.ai/api/mcp/auth_callback")).json()).application_type,
+  ).toBe("web");
+  expect((await register("http://evil.example/callback")).status()).toBe(400);
+});
