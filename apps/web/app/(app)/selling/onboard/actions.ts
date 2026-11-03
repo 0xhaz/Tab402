@@ -6,6 +6,7 @@ import {
   confirmPricing,
   discoveryPreview,
   gateSnippet,
+  LiveRoutesError,
   MockOnboardingModel,
   type OnboardingModel,
   pricingDocs,
@@ -82,16 +83,22 @@ const Confirm = z.object({
     )
     .min(1, "Pick at least one route to charge for.")
     .max(200),
+  overwrite: z.boolean().optional(),
 });
 
 export async function confirm(input: z.input<typeof Confirm>) {
   const seller = await currentSeller();
   const parsed = Confirm.safeParse(input);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
-  const { aiDecisionId, baseUrl, routes } = parsed.data;
+  const { aiDecisionId, baseUrl, routes, overwrite } = parsed.data;
   try {
-    await confirmPricing(db, { sellerId: seller.id, aiDecisionId, baseUrl, routes });
+    await confirmPricing(db, { sellerId: seller.id, aiDecisionId, baseUrl, routes, overwrite });
   } catch (err) {
+    if (err instanceof LiveRoutesError)
+      return {
+        error: err.message,
+        conflict: { changes: err.changes, blocking: err.blocking },
+      };
     return { error: (err as Error).message };
   }
   revalidatePath("/selling");

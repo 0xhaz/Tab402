@@ -126,3 +126,35 @@ test("seller sees webhook deliveries and can retry a failed one", async ({ page 
   const [row] = await db.select().from(s.eventsOut).where(eq(s.eventsOut.id, failed));
   expect(row?.deliveryStatus).toBe("pending");
 });
+
+test("re-running onboarding on a live API lists the changes and asks before updating", async ({
+  page,
+}) => {
+  const { sellerId } = await becomeSeller(page, "Lee Live");
+  const run = async (price: string) => {
+    await page.goto("/selling/onboard");
+    await page.getByLabel("OpenAPI spec").fill(SPEC);
+    await page.getByRole("button", { name: "Propose prices" }).click();
+    await page.getByLabel("Charge for POST /v1/render").click(); // leave only /v1/find
+    await page.getByLabel("Price for POST /v1/find").fill(price);
+  };
+
+  await run("0.01");
+  await page.getByRole("button", { name: "Confirm 1 route" }).click();
+  await expect(page.getByText("You're priced")).toBeVisible();
+
+  // Same base URL, new price: nothing changes until the seller says so.
+  await run("0.02");
+  await page.getByRole("button", { name: "Confirm 1 route" }).click();
+  await expect(page.getByText("These routes are already live")).toBeVisible();
+  await expect(page.getByText("POST /v1/find: $0.01 → $0.02")).toBeVisible();
+  const price = async () =>
+    (await db.select().from(s.endpoints).where(eq(s.endpoints.sellerId, sellerId))).map(
+      (e) => e.priceMicros,
+    );
+  expect(await price()).toEqual([10_000]);
+
+  await page.getByRole("button", { name: "Update live routes" }).click();
+  await expect(page.getByText("You're priced")).toBeVisible();
+  expect(await price()).toEqual([20_000]);
+});

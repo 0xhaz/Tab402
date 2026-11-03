@@ -159,9 +159,9 @@ The script switches the demo buyer to a post-paid mandate on the wallet saved he
 
 ### 7. The seller side
 
-**Hosted site.** The demo seller already belongs to the shared account. Open **Selling**. In **Add from OpenAPI** below, paste `https://tab402-sellers.onrender.com/openapi.json`.
+**Hosted site.** The demo seller already belongs to the shared account. Open **Selling**. The demo spec for **Add from OpenAPI** below is at https://tab402-sellers.onrender.com/openapi.json.
 
-**Localhost.** Make the seeded demo seller belong to your account so its traffic shows up, then open **Selling**. In **Add from OpenAPI** below, paste `http://localhost:4200/openapi.json`.
+**Localhost.** Make the seeded demo seller belong to your account so its traffic shows up, then open **Selling**. The demo spec for **Add from OpenAPI** below is at http://localhost:4200/openapi.json. Don't click **Become a seller** first, because that makes a new, empty seller.
 
 ```sh
 ./demo/link-seller.sh
@@ -170,7 +170,7 @@ The script switches the demo buyer to a post-paid mandate on the wallet saved he
 On **Selling**:
 
 - Tiles for earned, collected and paid out, and the demo endpoints.
-- **Add from OpenAPI**: paste the spec URL and click **Propose prices**. Claude Sonnet 5.5 reads the spec and proposes a price per route, leaving `/health` free. Set the base URL to something like `https://api.example.com`, adjust a price and confirm. You get the gate config to paste into a Hono app, and the routes appear in the **Directory** straight away.
+- **Add from OpenAPI**: the box takes the spec itself, not its URL. Open the spec URL in a new tab, copy all of the JSON, paste it into the box and click **Propose prices**. You can also save the file and use **or load a file**. Claude Sonnet 5.5 reads the spec and proposes a price per route, leaving `/health` free. Set the base URL to something like `https://api.example.com`, adjust a price and confirm. If you keep a base URL whose routes are already live, such as the demo seller's own, Tab402 lists what would change and asks before updating them. It refuses to switch a live route between fixed and metered pricing. You get the gate config to paste into a Hono app, and the routes appear in the **Directory** straight away.
 - **Webhooks** lists the events a seller receives (charge recorded, tab settled, payout sent).
 - **Payouts CSV** downloads the payouts made so far.
 

@@ -261,12 +261,41 @@ export interface ConfirmedRoute {
 }
 
 /**
+ * Confirming would change routes that agents already pay for. `blocking` means a pricing mode
+ * change, which needs a code change in the seller's API (metered routes report their cost), so
+ * onboarding refuses it outright; otherwise the caller can confirm again with `overwrite`.
+ */
+export class LiveRoutesError extends Error {
+  constructor(
+    readonly changes: string[],
+    readonly blocking: boolean,
+  ) {
+    super(
+      blocking
+        ? "Some of these routes are already live with a different pricing mode. Change that in your gate config, or use a different base URL."
+        : "Some of these routes are already live. Confirm again to update them, or use a different base URL.",
+    );
+    this.name = "LiveRoutesError";
+  }
+}
+
+/**
  * Register confirmed routes (upsert by method + URL, like PUT /endpoints) and record on the AI
  * decision what the human changed. Returns the endpoints as registered.
+ *
+ * Changing a live route (one this seller already has, or a new route on a base URL that already
+ * has live routes) throws LiveRoutesError unless `overwrite` is set. A pricing mode change on a
+ * live route is always refused: the seller's gate config owns that.
  */
 export async function confirmPricing(
   db: Database,
-  input: { sellerId: string; aiDecisionId: string; baseUrl: string; routes: ConfirmedRoute[] },
+  input: {
+    sellerId: string;
+    aiDecisionId: string;
+    baseUrl: string;
+    routes: ConfirmedRoute[];
+    overwrite?: boolean;
+  },
 ): Promise<{ id: string; method: string; url: string }[]> {
   const base = new URL(input.baseUrl);
   if (base.protocol !== "https:" && base.protocol !== "http:")
@@ -284,6 +313,31 @@ export async function confirmPricing(
   );
 
   return db.transaction(async (tx) => {
+    const live = (
+      await tx.query.endpoints.findMany({
+        where: (e, { and, eq }) => and(eq(e.sellerId, input.sellerId), eq(e.active, true)),
+      })
+    ).filter((e) => e.url.startsWith(`${prefix}/`));
+    const changes: string[] = [];
+    let blocking = false;
+    for (const r of input.routes) {
+      const method = r.method.toUpperCase();
+      const key = `${method} ${r.path.startsWith("/") ? r.path : `/${r.path}`}`;
+      const e = live.find(
+        (l) => l.method === method && l.url === `${prefix}${key.slice(method.length + 1)}`,
+      );
+      if (!e) {
+        if (live.length > 0) changes.push(`${key}: new route on an API that is already live`);
+      } else if (e.pricingMode !== r.pricing) {
+        blocking = true;
+        changes.push(`${key}: live as ${e.pricingMode}, this would make it ${r.pricing}`);
+      } else if (e.priceMicros !== r.priceMicros) {
+        changes.push(`${key}: ${usd(e.priceMicros)} → ${usd(r.priceMicros)}`);
+      }
+    }
+    if (blocking || (changes.length > 0 && !input.overwrite))
+      throw new LiveRoutesError(changes, blocking);
+
     const out: { id: string; method: string; url: string }[] = [];
     for (const r of input.routes) {
       if (!Number.isSafeInteger(r.priceMicros) || r.priceMicros <= 0)
@@ -313,7 +367,7 @@ export async function confirmPricing(
       }
     }
     const confirmed = new Set(input.routes.map((r) => `${r.method.toUpperCase()} ${r.path}`));
-    const changes = [
+    const overrides = [
       ...input.routes
         .map((r) => ({ key: `${r.method.toUpperCase()} ${r.path}`, priceMicros: r.priceMicros }))
         .filter((r) => proposed.get(r.key)?.priceMicros !== r.priceMicros)
@@ -325,7 +379,9 @@ export async function confirmPricing(
     await tx
       .update(s.aiDecisions)
       .set({
-        humanOverride: changes.length ? changes.join("; ").slice(0, 2000) : "accepted as proposed",
+        humanOverride: overrides.length
+          ? overrides.join("; ").slice(0, 2000)
+          : "accepted as proposed",
       })
       .where(eq(s.aiDecisions.id, input.aiDecisionId));
     return out;

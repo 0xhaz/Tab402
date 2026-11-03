@@ -66,10 +66,13 @@ export function OnboardFlow({ categories, ai }: { categories: Category[]; ai: bo
   const [rows, setRows] = useState<Row[]>([]);
   const [baseUrl, setBaseUrl] = useState("");
   const [done, setDone] = useState<Done | null>(null);
+  const [conflict, setConflict] = useState<{ changes: string[]; blocking: boolean } | null>(null);
   const [pending, start] = useTransition();
   const cat = (id: string) => categories.find((c) => c.id === id) ?? categories[0];
-  const update = (key: string, patch: Partial<Row>) =>
+  const update = (key: string, patch: Partial<Row>) => {
+    setConflict(null);
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  };
 
   if (done) {
     return (
@@ -193,7 +196,10 @@ export function OnboardFlow({ categories, ai }: { categories: Category[]; ai: bo
             id="base-url"
             value={baseUrl}
             placeholder="https://api.example.com"
-            onChange={(e) => setBaseUrl(e.target.value)}
+            onChange={(e) => {
+              setConflict(null);
+              setBaseUrl(e.target.value);
+            }}
           />
         </div>
         <div className="overflow-x-auto">
@@ -288,12 +294,30 @@ export function OnboardFlow({ categories, ai }: { categories: Category[]; ai: bo
             </TableBody>
           </Table>
         </div>
+        {conflict && (
+          <Alert variant={conflict.blocking ? "destructive" : "default"}>
+            <AlertDescription className="flex flex-col gap-2">
+              <span>
+                {conflict.blocking
+                  ? "These routes are already live with a different pricing mode. Agents pay for them now, and changing fixed to metered needs a code change in your API. Change it in your gate config, or use a different base URL."
+                  : "These routes are already live, and agents pay for them now. Update them, or use a different base URL."}
+              </span>
+              <ul className="list-disc pl-5 font-mono text-xs">
+                {conflict.changes.map((c) => (
+                  <li key={c}>{c}</li>
+                ))}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        )}
         <div className="flex flex-wrap gap-2">
           <Button
-            disabled={pending || charged.length === 0 || !baseUrl}
+            variant={conflict && !conflict.blocking ? "destructive" : "default"}
+            disabled={pending || charged.length === 0 || !baseUrl || Boolean(conflict?.blocking)}
             onClick={() =>
               start(async () => {
                 const r = await confirm({
+                  overwrite: Boolean(conflict),
                   aiDecisionId: proposal.aiDecisionId,
                   baseUrl,
                   routes: charged.map((x) => ({
@@ -305,12 +329,15 @@ export function OnboardFlow({ categories, ai }: { categories: Category[]; ai: bo
                     category: x.category,
                   })),
                 });
-                if ("error" in r) toast.error(r.error);
+                if ("conflict" in r && r.conflict) setConflict(r.conflict);
+                else if ("error" in r) toast.error(r.error);
                 else setDone(r);
               })
             }
           >
-            Confirm {charged.length} {charged.length === 1 ? "route" : "routes"}
+            {conflict && !conflict.blocking
+              ? "Update live routes"
+              : `Confirm ${charged.length} ${charged.length === 1 ? "route" : "routes"}`}
           </Button>
           <Button variant="ghost" onClick={() => setProposal(null)} disabled={pending}>
             Start over

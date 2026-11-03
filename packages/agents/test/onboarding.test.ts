@@ -5,11 +5,13 @@ import { testDatabase } from "@tab402/db/testing";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import {
+  type ConfirmedRoute,
   clampPrice,
   confirmPricing,
   describeApi,
   discoveryPreview,
   gateSnippet,
+  LiveRoutesError,
   MockOnboardingModel,
   type OnboardingModel,
   parseSpecText,
@@ -239,6 +241,76 @@ describe("onboarding agent", () => {
         routes,
       }),
     ).rejects.toThrow(/unknown onboarding/);
+  });
+
+  it("won't change live routes without overwrite, and never flips their pricing mode", async () => {
+    const o = await proposePricing(
+      { db, model: new MockOnboardingModel() },
+      { sellerId, specText: OPENAPI_31 },
+    );
+    const base = "https://api.acme.example/v1";
+    const search = o.proposals.find((p) => p.key === "POST /search");
+    const health = o.proposals.find((p) => p.method === "GET" && p.path === "/health");
+    if (!search) throw new Error("no search proposal");
+    const route = (p: NonNullable<typeof search>, patch: Partial<ConfirmedRoute> = {}) => ({
+      method: p.method,
+      path: p.path,
+      pricing: p.pricing,
+      priceMicros: p.priceMicros,
+      description: p.description,
+      category: p.category,
+      ...patch,
+    });
+    const confirm = (routes: ConfirmedRoute[], overwrite?: boolean) =>
+      confirmPricing(db, {
+        sellerId,
+        aiDecisionId: o.aiDecisionId,
+        baseUrl: base,
+        routes,
+        overwrite,
+      });
+    const priceOf = async () =>
+      (await db.select().from(s.endpoints).where(eq(s.endpoints.sellerId, sellerId))).map(
+        (e) => `${e.pricingMode} ${e.priceMicros}`,
+      );
+
+    await confirm([route(search, { pricing: "fixed", priceMicros: 10_000 })]);
+    // Same price again is fine.
+    await confirm([route(search, { pricing: "fixed", priceMicros: 10_000 })]);
+
+    // A new price needs overwrite; the error lists the change and nothing is written.
+    const err = await confirm([route(search, { pricing: "fixed", priceMicros: 20_000 })]).catch(
+      (e) => e,
+    );
+    expect(err).toBeInstanceOf(LiveRoutesError);
+    expect(err).toMatchObject({ blocking: false, changes: ["POST /search: $0.01 → $0.02"] });
+    expect(await priceOf()).toEqual(["fixed 10000"]);
+
+    // A metered switch is refused even with overwrite.
+    const flip = await confirm(
+      [route(search, { pricing: "metered", priceMicros: 20_000 })],
+      true,
+    ).catch((e) => e);
+    expect(flip).toMatchObject({ blocking: true });
+    expect(await priceOf()).toEqual(["fixed 10000"]);
+
+    // A new route on the live API also asks first.
+    if (health) {
+      const added = await confirm([route(health, { priceMicros: 1_000 })]).catch((e) => e);
+      expect(added).toMatchObject({ blocking: false });
+      expect(added.changes[0]).toMatch(/new route on an API that is already live/);
+    }
+
+    await confirm([route(search, { pricing: "fixed", priceMicros: 20_000 })], true);
+    expect(await priceOf()).toEqual(["fixed 20000"]);
+
+    // Another base URL is a different API: no questions.
+    await confirmPricing(db, {
+      sellerId,
+      aiDecisionId: o.aiDecisionId,
+      baseUrl: "https://staging.acme.example/v1",
+      routes: [route(search, { pricing: "metered", priceMicros: 30_000 })],
+    });
   });
 
   it("generates the gate config, discovery file and docs from confirmed routes", () => {

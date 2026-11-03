@@ -33,11 +33,11 @@ Everything is recorded on the hosted site, https://tab402-web.onrender.com, so j
 ### 0:15 to 0:45 · A seller prices an API in a minute
 
 **Screen:** Selling, Add from OpenAPI.
-1. Paste `https://tab402-sellers.onrender.com/openapi.json` and click Propose prices.
+1. Paste the spec JSON and click Propose prices. Copy it beforehand from https://tab402-sellers.onrender.com/openapi.json, because the box takes the spec itself, not its URL.
 2. The proposals appear. Change one price and confirm.
 3. Show the Gate config tab, then the Directory listing the routes.
 
-> I'm a seller. I paste my OpenAPI spec, and Claude reads it and proposes a price for each route. It leaves the health check free. I adjust one price and confirm. Tab402 gives me a few lines of gate config for my server, and my routes are listed in the public directory where agents look for services.
+> Right now I'm a seller. And I will paste my OpenAPI spec, and Claude reads it and proposes a price for each route and it will leaves the health check free. I adjust one price and confirm. Tab402 gives me a few lines of gate config for my server, and my routes are listed in the public directory where agents look for services.
 
 ### 0:45 to 1:15 · An agent finds it and pays
 
