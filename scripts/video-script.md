@@ -11,16 +11,16 @@ Everything is recorded on the hosted site, https://tab402-web.onrender.com, so j
 - **Sign in.** Use the shared account (`buyer@example.com`) on https://tab402-web.onrender.com. Record before you share the login with judges. If they already have it, check that **Ask me before every purchase** is off and the Playground agent is active.
 - **Set up this machine.** Passkeys are per device, so add one on the recording machine under **Security & alerts**. Turn on notifications in Chrome there too.
 - **Seller link.** The demo seller must already be linked to the shared account (README, Deploy on Render, step 3).
-- **Data.** Run the playground steps 1 to 4 a few times off camera, then wait at least one 15-minute settlement run. That leaves Receipts with collected rows and gives the Render Runs page some history.
+- **Wallet.** Save a PayPal sandbox wallet on **Wallet**, and try **Top up** once off camera. Scene 5 needs both, and the sandbox app needs Vault turned on.
+- **Data.** Run the playground steps 1 to 4 a few times off camera, then wait at least one 15-minute settlement run, so Receipts has collected rows next to the new ones.
 - **Watermark.** Add `AG_STUDIO_LICENSE_KEY` to the `tab402-secrets` group on Render (the 45-day trial works) and redeploy `tab402-web`.
 - **Real model output.** `DEMO_LLM=anthropic` is already set on Render, so the summaries come from Claude. Check that the Anthropic key has credit and a spending limit.
 - **Windows.**
   - Chrome at 1440 × 900, light theme, zoom 110%, with no bookmarks bar or other tabs.
-  - A second window on the Render dashboard at **tab402-settlement, Runs**.
   - Do Not Disturb on except for Chrome, so only the Tab402 push shows up.
 - **Wake the services.** Render's starter plan doesn't spin services down, but open each URL once before recording, because the first request after a deploy is slower.
-- **If the hosted site is down,** record locally with `./demo/setup.sh` and `./demo/start.sh`. Replace scene 5 with `scripts/demo/settle-sandbox.ts` in a terminal at 18 pt or larger.
-- **Music and logos.** Use no music, or music you have the rights to. Keep other companies' logos off screen apart from PayPal (the sponsor) and Render. The playground keeps a third-party agent's interface off screen. If you show Claude Code instead, check the rules on trademarks first.
+- **If the hosted site is down,** record locally with `./demo/setup.sh` and `./demo/start.sh`. In scene 5, run `scripts/demo/settle-sandbox.ts` in a terminal at 18 pt or larger in place of the top-up.
+- **Music and logos.** Use no music, or music you have the rights to. Keep other companies' logos off screen apart from PayPal, the sponsor. The playground keeps a third-party agent's interface off screen. If you show Claude Code instead, check the rules on trademarks first.
 
 ## Scenes
 
@@ -53,13 +53,16 @@ Everything is recorded on the hosted site, https://tab402-web.onrender.com, so j
 3. Turn Ask me before every purchase off again, or every sub-budget call would stop for approval too.
 4. Click Make a $0.02 sub-budget (button 5), then Summarize with the sub-budget (button 6) three times. The first two pay and the third is refused.
 
-> The buyer decides how much freedom the agent has. With "ask me first" on, the next purchase stops and asks. A push arrives on my laptop, I approve it with my passkey, and the agent finishes the call. Agents can also hand out small sub-budgets. This one has two cents, so the third call is refused. Anything unusual, like a new seller or a sudden spike, goes to a spend guard that can approve, deny, or ask me.
+> The buyer decides how much freedom the agent has. With "ask me first" on, the next purchase stops and asks. A push arrives on my laptop, I approve it with my passkey, and the agent finishes the call. Agents can also hand out small sub-budgets. This one has two cents, so the third call is refused. Anything unusual, like a new seller or a sudden spike, goes to a spend guard that can approve, deny, or ask me. And the tab settles by itself from a Render workflow that runs every fifteen minutes.
 
-### 1:50 to 2:15 · PayPal settles the tab, on Render Workflows
+### 1:50 to 2:15 · PayPal settles the tab
 
-**Screen:** The Render dashboard, tab402-settlement, Runs. Open the latest `settleDueTabs` run so its children show with their status: `settlePrepaid` for the demo buyer, and `topUp` or `captureTab` if one ran. Cut to Receipts, where the calls from scene 3 now say collected, next to older rows that say paid out.
+**Screen:**
+1. In the playground, click Show my tab (button 8). The Activity column shows what the agent owes each seller. Settlement runs at :00, :15, :30 and :45 and empties the tab, so record scenes 3 to 5 in one take that starts just after one of those times.
+2. Open Wallet. Point at the saved PayPal wallet and the prepaid balance, then click Top up. Cut the few seconds the sandbox takes.
+3. Open Receipts. The calls from scene 3 say collected, next to older rows that say paid out.
 
-> None of those cents went through PayPal one by one. Every fifteen minutes a Render cron job starts our settlement workflow, and each buyer's settlement runs as its own task, in parallel. Render retries a PayPal hiccup by itself. A prepaid balance is topped up from the buyer's saved PayPal wallet, and a post-paid tab is captured in one merchant-initiated charge. Then PayPal Payouts pays the seller, and receipts move from earned to collected to paid out.
+> None of those cents went through PayPal one by one. The agent can see its tab, what it owes each seller. I saved my PayPal wallet once, with PayPal Vault, so Tab402 can charge it without a checkout page. My balance tops up in one merchant-initiated charge. Then PayPal Payouts pays the seller, and receipts move from earned to collected to paid out.
 
 ### 2:15 to 2:40 · The seller sees the money
 
@@ -92,6 +95,7 @@ Cut in this order:
 | Seller prices an API | Onboarding agent, gate config, directory | Claude Sonnet 5.5 |
 | Agent pays | MCP server, x402 handshake, signed vouchers, live receipts | Model Context Protocol |
 | Buyer in control | Approvals, passkeys, Web Push, sub-budgets, spend guard | Claude Haiku 4.5 (spend guard) |
-| PayPal settles | Prepaid top-ups, one capture per tab, payouts, money states | Render Workflows and Cron Jobs, PayPal Vault v3, Orders v2, Payouts |
+| Buyer in control (narration) | Settlement every 15 minutes | Render Workflows and Cron Jobs |
+| PayPal settles | The agent's tab, saved wallet, prepaid top-up, money states | PayPal Vault v3, Orders v2, Payouts |
 | Seller sees money | Revenue dashboard, cross-filtering, revenue agent | AG Studio (AG Grid), Claude Sonnet 5.5 |
 | Close | Hosted on Render | Render web services, worker, Postgres |
