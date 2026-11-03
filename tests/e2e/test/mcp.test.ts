@@ -279,7 +279,7 @@ describe("buyer MCP server", () => {
       ).toBeFalsy();
     const third = await call("call_paid", { ...summarize, sub_budget: sub.sub_budget });
     expect(third.isError).toBe(true);
-    expect(out(third)).toContain("spend guard denied");
+    expect(out(third)).toContain("spend guard denied it: would exceed this sub-budget");
     const budget = parsed<{ sub_budgets: { id: string; spent: string }[] }>(
       await call("get_budget"),
     );

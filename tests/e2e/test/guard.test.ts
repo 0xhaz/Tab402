@@ -157,6 +157,7 @@ describe("spend guard, end to end", () => {
     expect((await child.client.fetch(`${SELLERS}/v1/summarize`, body)).status).toBe(200);
     await expect(child.client.fetch(`${SELLERS}/v1/summarize`, body)).rejects.toMatchObject({
       reason: "guard_denied",
+      message: "would exceed this sub-budget",
     });
   });
 });

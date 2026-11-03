@@ -227,6 +227,15 @@ export class Tab402Client {
         if (d.outcome === "deny") throw new PaymentError("guard_denied", d.reason, fresh);
         throw new PaymentError("approval_required", d.reason, fresh, d.approval);
       }
+      if (next && reason === "guard_denied") {
+        // /verify only carries the code. Ask the guard which rule it was, so the agent can say why.
+        const d = await this.decide(next, opts.intent).catch(() => null);
+        if (d?.outcome === "deny")
+          throw new PaymentError("guard_denied", d.reason, {
+            ...quote,
+            quoteId: next.extra.quoteId,
+          });
+      }
       throw new PaymentError(reason, `payment rejected: ${reason}`, quote);
     }
 
