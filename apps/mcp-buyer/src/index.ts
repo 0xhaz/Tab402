@@ -8,7 +8,7 @@ const env = (k: string) => {
   if (!v) throw new Error(`${k} is not set`);
   return v;
 };
-const port = Number(process.env.MCP_PORT ?? 4100);
+const port = Number(process.env.MCP_PORT ?? process.env.PORT ?? 4100);
 const web = (process.env.BETTER_AUTH_URL ?? process.env.WEB_URL ?? "http://localhost:3000").replace(
   /\/+$/,
   "",

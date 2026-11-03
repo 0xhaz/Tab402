@@ -1,0 +1,25 @@
+{
+  "name": "@tab402/workflows",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "render workflows dev -- tsx --env-file-if-exists=../../.env src/index.ts",
+    "start": "tsx --env-file-if-exists=../../.env src/index.ts",
+    "trigger": "tsx --env-file-if-exists=../../.env src/trigger.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@renderinc/sdk": "1.6.0",
+    "@tab402/config": "workspace:*",
+    "@tab402/db": "workspace:*",
+    "@tab402/ledger": "workspace:*",
+    "@tab402/paypal": "workspace:*",
+    "@tab402/worker": "workspace:*",
+    "drizzle-orm": "0.45.3",
+    "pg-boss": "12.36.0"
+  },
+  "exports": {
+    "./settlement": "./src/settlement.ts"
+  }
+}

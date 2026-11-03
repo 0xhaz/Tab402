@@ -12,7 +12,7 @@ import { logger } from "./logger";
 
 const url = process.env.DATABASE_URL;
 if (!url) throw new Error("DATABASE_URL is not set");
-const port = Number(process.env.API_PORT ?? 4000);
+const port = Number(process.env.API_PORT ?? process.env.PORT ?? 4000);
 const live = process.env.PAYPAL_ENV === "live";
 const { db } = createDb(url);
 

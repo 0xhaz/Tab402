@@ -1,0 +1,4 @@
+{
+  "extends": "@tab402/config/tsconfig.base.json",
+  "include": ["src", "test"]
+}

@@ -45,8 +45,15 @@ for (const name of Object.values(JOBS) as JobName[]) {
     for (const job of jobs) await (handlers[name] as (data: unknown) => Promise<void>)(job.data);
   });
 }
-for (const s of SCHEDULES)
-  await boss.schedule(s.name, s.cron, s.data ?? {}, { tz: "UTC", key: s.key });
+// On Render, settlement and payouts run as Render Workflows (apps/workflows), started by a cron
+// job. The worker keeps everything else, including the 24 h capture retry those tasks hand back.
+const onRender = process.env.SETTLEMENT_RUNNER === "render";
+const RENDER_OWNED: JobName[] = [JOBS.scan, JOBS.payoutRun];
+for (const s of SCHEDULES) {
+  // Schedules persist in pg-boss, so switching runners has to remove the old ones.
+  if (onRender && RENDER_OWNED.includes(s.name)) await boss.unschedule(s.name, s.key);
+  else await boss.schedule(s.name, s.cron, s.data ?? {}, { tz: "UTC", key: s.key });
+}
 // Approvals can't wait for the minute sweep: send as soon as a notification commits.
 let pushing: Promise<void> | null = null;
 let again = false;
@@ -67,7 +74,10 @@ const pushNow = () => {
 };
 if (vapid) await sql.listen(NOTIFY_CHANNEL, pushNow, pushNow);
 
-logger.info({ queues: Object.values(JOBS).length, schedules: SCHEDULES.length }, "worker started");
+logger.info(
+  { queues: Object.values(JOBS).length, settlement: onRender ? "render-workflows" : "pg-boss" },
+  "worker started",
+);
 
 const shutdown = async () => {
   await boss.stop({ graceful: true });

@@ -1,0 +1,190 @@
+# Tab402 on Render: one Blueprint for the whole stack.
+#   Dashboard → New → Blueprint → pick this repo. Render asks for every `sync: false` value once.
+#
+#   tab402-web        Next.js app (sign-in, wallet, approvals, receipts, dashboards)
+#   tab402-api        facilitator API: quotes, verify, settle, spend guard, PayPal webhooks
+#   tab402-mcp        MCP server agents connect to
+#   tab402-sellers    demo paid API (summarize, chat)
+#   tab402-worker     pg-boss jobs: push, merchant webhooks, reconciliation, capture retries
+#   tab402-settlement Render Workflow: captures every due tab in parallel, runs payouts
+#   tab402-settle     Cron Job: starts the settlement workflow every 15 minutes
+#   tab402-db         Render Postgres 18
+#
+# The public URLs below assume Render gives each service its plain name. If a name is taken,
+# Render adds a suffix: update the tab402-urls group to match, then redeploy.
+
+previews:
+  generation: "off"
+
+envVarGroups:
+  - name: tab402-urls
+    envVars:
+      - key: WEB_URL
+        value: https://tab402-web.onrender.com
+      - key: BETTER_AUTH_URL
+        value: https://tab402-web.onrender.com
+      - key: TAB402_API_URL
+        value: https://tab402-api.onrender.com
+      - key: MCP_URL
+        value: https://tab402-mcp.onrender.com/mcp
+      - key: MCP_ALLOWED_HOSTS
+        value: tab402-mcp.onrender.com
+      - key: DEMO_SELLERS_URL
+        value: https://tab402-sellers.onrender.com
+
+  - name: tab402-secrets
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PAYPAL_ENV
+        value: sandbox
+      # 32 random bytes, base64: what the envelope encryption expects.
+      - key: TAB402_MASTER_KEY
+        generateValue: true
+      - key: BETTER_AUTH_SECRET
+        generateValue: true
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      # Set after creating the webhook for https://tab402-api.onrender.com/webhooks/paypal
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      # node -e "console.log('t402_sk_'+require('crypto').randomBytes(32).toString('base64url'))"
+      - key: DEMO_SELLER_API_KEY
+        sync: false
+      # Same command with t402_bk_
+      - key: DEMO_BUYER_API_KEY
+        sync: false
+      - key: DEMO_LLM
+        value: anthropic
+      # npx tsx scripts/vapid.ts
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        value: mailto:ops@tab402.dev
+      - key: AG_STUDIO_LICENSE_KEY
+        sync: false
+
+services:
+  - type: web
+    name: tab402-web
+    runtime: node
+    region: oregon
+    plan: starter
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @tab402/web build
+    startCommand: pnpm --filter @tab402/web start
+    healthCheckPath: /welcome
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase: { name: tab402-db, property: connectionString }
+      - fromGroup: tab402-urls
+      - fromGroup: tab402-secrets
+    buildFilter:
+      ignoredPaths: ["**/*.md", "tests/**", "demo/**"]
+
+  - type: web
+    name: tab402-api
+    runtime: node
+    region: oregon
+    plan: starter
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false
+    # Migrations and the idempotent seed (demo seller, demo buyer, their API keys) before each deploy.
+    preDeployCommand: pnpm db:migrate && pnpm db:seed
+    startCommand: pnpm --filter @tab402/api start
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase: { name: tab402-db, property: connectionString }
+      - fromGroup: tab402-urls
+      - fromGroup: tab402-secrets
+    buildFilter:
+      ignoredPaths: ["**/*.md", "tests/**", "demo/**", "apps/web/**"]
+
+  - type: web
+    name: tab402-mcp
+    runtime: node
+    region: oregon
+    plan: starter
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false
+    startCommand: pnpm --filter @tab402/mcp-buyer start
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase: { name: tab402-db, property: connectionString }
+      - fromGroup: tab402-urls
+      - fromGroup: tab402-secrets
+    buildFilter:
+      ignoredPaths: ["**/*.md", "tests/**", "demo/**", "apps/web/**"]
+
+  - type: web
+    name: tab402-sellers
+    runtime: node
+    region: oregon
+    plan: starter
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false
+    startCommand: pnpm --filter @tab402/demo-sellers start
+    healthCheckPath: /health
+    envVars:
+      - fromGroup: tab402-urls
+      - fromGroup: tab402-secrets
+    buildFilter:
+      ignoredPaths: ["**/*.md", "tests/**", "demo/**", "apps/web/**"]
+
+  - type: worker
+    name: tab402-worker
+    runtime: node
+    region: oregon
+    plan: starter
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false
+    startCommand: pnpm --filter @tab402/worker start
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase: { name: tab402-db, property: connectionString }
+      # Settlement and payouts belong to the tab402-settlement workflow on Render.
+      - key: SETTLEMENT_RUNNER
+        value: render
+      - fromGroup: tab402-urls
+      - fromGroup: tab402-secrets
+    buildFilter:
+      ignoredPaths: ["**/*.md", "tests/**", "demo/**", "apps/web/**"]
+
+  - type: workflow
+    name: tab402-settlement
+    runtime: node
+    region: oregon
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false
+    startCommand: pnpm --filter @tab402/workflows start
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase: { name: tab402-db, property: connectionString }
+      - fromGroup: tab402-secrets
+    buildFilter:
+      ignoredPaths: ["**/*.md", "tests/**", "demo/**", "apps/web/**"]
+
+  - type: cron
+    name: tab402-settle
+    runtime: node
+    region: oregon
+    plan: starter
+    schedule: "*/15 * * * *"
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false
+    startCommand: pnpm --filter @tab402/workflows trigger
+    envVars:
+      # An API key from Account settings → API keys; lets the cron job start workflow runs.
+      - key: RENDER_API_KEY
+        sync: false
+      - key: WORKFLOW_SLUG
+        value: tab402-settlement
+    buildFilter:
+      ignoredPaths: ["**/*.md", "tests/**", "demo/**", "apps/web/**"]
+
+databases:
+  - name: tab402-db
+    region: oregon
+    plan: basic-256mb
+    postgresMajorVersion: "18"

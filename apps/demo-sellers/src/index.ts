@@ -3,7 +3,7 @@ import { createApp } from "./app";
 import { llmFromEnv } from "./llm";
 import { logger } from "./logger";
 
-const port = Number(process.env.DEMO_SELLERS_PORT ?? 4200);
+const port = Number(process.env.DEMO_SELLERS_PORT ?? process.env.PORT ?? 4200);
 const apiKey = process.env.DEMO_SELLER_API_KEY;
 if (!apiKey) throw new Error("DEMO_SELLER_API_KEY is not set (see .env.example)");
 

@@ -12,7 +12,7 @@ The story runs in one direction: a seller prices an API, an agent finds it and p
 - Set `AG_STUDIO_LICENSE_KEY` in `.env` (the 45-day trial works) and rebuild, so the dashboards have no watermark.
 - Set `DEMO_LLM=anthropic` so the summaries are real.
 - Browser at 1440 × 900, light theme, zoom 110%. Hide bookmarks and other tabs. Turn on Do Not Disturb except for Chrome, so only the Tab402 push shows up.
-- Keep the terminal font large (18 pt or more) for the settlement scene.
+- Deploy with `render.yaml` first, and let the cron job run a few times so the workflow's Runs page has history. If you record locally instead, show `scripts/demo/settle-sandbox.ts` in a terminal with a large font (18 pt or more).
 - Use no music, or music you have the rights to. Keep other companies' logos off screen apart from PayPal, the sponsor. The playground avoids showing a third-party agent's interface; if you show Claude Code instead, check the rules on trademarks first.
 
 ## Scenes
@@ -41,11 +41,11 @@ The story runs in one direction: a seller prices an API, an agent finds it and p
 
 > The buyer decides how much freedom the agent has. With "ask me first" on, the next purchase stops and asks. A push arrives on my laptop, I approve it with my passkey, and the agent finishes the call. Agents can also hand out small sub-budgets. This one has two cents, so the third call is refused. Anything unusual, like a new seller or a sudden spike, goes to a spend guard that can approve, deny, or ask me.
 
-### 1:50 to 2:15 · PayPal settles the tab
+### 1:50 to 2:15 · PayPal settles the tab, on Render Workflows
 
-**Screen:** Terminal running `settle-sandbox.ts 50`. Let the lines for the capture and the payout show. Cut to Receipts, where the calls now say collected, then paid out.
+**Screen:** The Render dashboard, tab402-settlement workflow, Runs. Open the latest `settleDueTabs` run so its `captureTab` children show, each with its status. Cut to Receipts, where the calls now say collected, then paid out.
 
-> None of those cents went through PayPal one by one. They add up on the tab. When it's due, Tab402 makes one merchant-initiated charge on the buyer's saved PayPal wallet, here fifty calls in a single capture. Then it pays the seller through PayPal Payouts. Receipts move from earned to collected to paid out.
+> None of those cents went through PayPal one by one. They add up on the tab. Every fifteen minutes a Render cron job starts our settlement workflow. Each buyer's tab is captured as its own task run, in parallel, and Render retries a PayPal hiccup on its own. One merchant-initiated charge on the buyer's saved PayPal wallet covers the whole tab. Then PayPal Payouts pays the seller, and receipts move from earned to collected to paid out.
 
 ### 2:15 to 2:40 · The seller sees the money
 
@@ -75,5 +75,5 @@ Cut in this order:
 | Seller prices an API | Onboarding agent, gate config, directory | Claude Sonnet 5.5 |
 | Agent pays | MCP server, x402 handshake, signed vouchers, live receipts | Model Context Protocol |
 | Buyer in control | Approvals, passkeys, Web Push, sub-budgets, spend guard | Claude Haiku 4.5 (spend guard) |
-| PayPal settles | One capture per tab, payouts, money states | PayPal Vault v3, Orders v2, Payouts |
+| PayPal settles | One capture per tab, payouts, money states | Render Workflows and Cron Jobs, PayPal Vault v3, Orders v2, Payouts |
 | Seller sees money | Revenue dashboard, cross-filtering, revenue agent | AG Studio (AG Grid), Claude Sonnet 5.5 |
