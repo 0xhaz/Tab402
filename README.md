@@ -6,8 +6,8 @@ Built for the PayPal developer hackathon with PayPal Vault, Orders v2 (merchant-
 
 | | |
 |---|---|
-| Try it | [Judge guide: set up and walkthrough](demo/README.md) (about 10 minutes) |
-| Hosted demo | Not deployed yet. Deploy your own: [render.yaml](render.yaml) |
+| Hosted demo | https://tab402-web.onrender.com (shared login: `buyer@example.com` / `tab402-judges`) |
+| Judge guide | [Walkthrough for the hosted site or localhost](demo/README.md) |
 | Demo video | Link on the submission form |
 | License | [MIT](LICENSE) |
 
@@ -23,6 +23,7 @@ Built for the PayPal developer hackathon with PayPal Vault, Orders v2 (merchant-
   - [Money states](#money-states)
   - [Data model](#data-model)
 - [Tools and how they are used](#tools-and-how-they-are-used)
+- [Try the hosted demo](#try-the-hosted-demo)
 - [Deploy on Render](#deploy-on-render)
   - [Settlement on Render Workflows](#settlement-on-render-workflows)
 - [Run it locally](#run-it-locally)
@@ -246,6 +247,26 @@ erDiagram
 
 Without an `ANTHROPIC_API_KEY`, each Claude feature falls back to a stand-in that labels its answers as mock output.
 
+## Try the hosted demo
+
+Tab402 runs on Render against the PayPal sandbox, so no real money moves.
+
+| Service | URL |
+|---|---|
+| Web app | https://tab402-web.onrender.com |
+| API reference | https://tab402-api.onrender.com/docs |
+| MCP server | https://tab402-mcp.onrender.com/mcp |
+| Demo seller | https://tab402-sellers.onrender.com/openapi.json |
+
+1. Sign in to the web app as `buyer@example.com` with the password `tab402-judges`. The account is shared by judges and already has a prepaid balance, an agent, a saved wallet and the demo seller.
+2. Add your own passkey under **Security & alerts**. Approvals are confirmed with it.
+3. Open **Agent playground** and click the steps in order: check the budget, find the summarizer, pay for a summary. Watch **Receipts** update in another tab.
+4. Turn on **Ask me before every purchase**, run a call and approve it with your passkey. Turn it off again afterwards, since other judges use the account.
+5. Within 15 minutes the Render settlement workflow moves those calls from *earned* to *collected*.
+6. Open **Selling** and **Seller analytics** to see the same calls from the seller's side.
+
+To connect Claude Code to the hosted MCP server, run `claude mcp add --transport http tab402 https://tab402-mcp.onrender.com/mcp` and sign in through the browser. The [judge guide](demo/README.md) has the full walkthrough and how to use your own account instead.
+
 ## Deploy on Render
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/0xhaz/Tab402)
@@ -282,7 +303,14 @@ After the first deploy:
 
 1. Check that each service got its plain name (`tab402-web.onrender.com` and so on). If Render added a suffix, update the `tab402-urls` environment group and redeploy.
 2. In the PayPal sandbox app, add a webhook for `https://tab402-api.onrender.com/webhooks/paypal` and put its id in `PAYPAL_WEBHOOK_ID`.
-3. Sign up on the web app before sharing it; passkeys are bound to that domain.
+3. Set up the shared judge account. Sign up on the web app as `buyer@example.com`, which claims the seeded demo buyer, and save a PayPal sandbox wallet on **Wallet**. Then link the demo seller to it with the PSQL command from **tab402-db, Connect, External**:
+
+   ```sql
+   update sellers set user_id = (select id from "user" where email = 'buyer@example.com')
+   where name = 'Tab402 Demo Sellers';
+   ```
+
+   Passkeys are bound to the domain, so each person who uses the account adds their own under **Security & alerts**.
 
 ### Settlement on Render Workflows
 
@@ -317,7 +345,7 @@ To run a task by hand: `pnpm --filter @tab402/workflows trigger` (needs `RENDER_
 
 ## Run it locally
 
-The quickest path is the [judge guide](demo/README.md):
+The quickest path is the [judge guide](demo/README.md#option-b-run-it-on-your-machine):
 
 ```sh
 ./demo/setup.sh   # checks tools, writes .env, installs, starts Postgres, migrates, seeds, builds
@@ -341,7 +369,7 @@ On a phone, the web app installs as a PWA. Push on iPhone needs **Share, Add to 
 
 ## Use it from an agent
 
-Claude Code with an API key:
+On the hosted site, add `https://tab402-mcp.onrender.com/mcp` with no headers and sign in through the browser. Locally, Claude Code can use an API key:
 
 ```sh
 claude mcp add --transport http tab402 http://localhost:4100/mcp \

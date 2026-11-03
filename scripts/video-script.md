@@ -4,16 +4,23 @@ Target length 2:45, which leaves 15 seconds of slack under the 3-minute limit. T
 
 The story runs in one direction: a seller prices an API, an agent finds it and pays, the buyer stays in control, PayPal settles it, and the seller sees the money.
 
+Everything is recorded on the hosted site, https://tab402-web.onrender.com, so judges see the same app they can open.
+
 ## Before you record
 
-- Start fresh: `pnpm db:down && docker volume rm tab402_tab402-pg && ./demo/setup.sh`, then `./demo/start.sh`.
-- Sign up as `buyer@example.com`, add a passkey, turn on notifications, and save a sandbox wallet. Run `./demo/link-seller.sh`.
-- Run the playground steps 1 to 4 a few times off camera, and run the settlement once (`demo/README.md` step 6), so the dashboards have data.
-- Set `AG_STUDIO_LICENSE_KEY` in `.env` (the 45-day trial works) and rebuild, so the dashboards have no watermark.
-- Set `DEMO_LLM=anthropic` so the summaries are real.
-- Browser at 1440 × 900, light theme, zoom 110%. Hide bookmarks and other tabs. Turn on Do Not Disturb except for Chrome, so only the Tab402 push shows up.
-- Deploy with `render.yaml` first, and let the cron job run a few times so the workflow's Runs page has history. If you record locally instead, show `scripts/demo/settle-sandbox.ts` in a terminal with a large font (18 pt or more).
-- Use no music, or music you have the rights to. Keep other companies' logos off screen apart from PayPal, the sponsor. The playground avoids showing a third-party agent's interface; if you show Claude Code instead, check the rules on trademarks first.
+- **Sign in.** Use the shared account (`buyer@example.com`) on https://tab402-web.onrender.com. Record before you share the login with judges. If they already have it, check that **Ask me before every purchase** is off and the Playground agent is active.
+- **Set up this machine.** Passkeys are per device, so add one on the recording machine under **Security & alerts**. Turn on notifications in Chrome there too.
+- **Seller link.** The demo seller must already be linked to the shared account (README, Deploy on Render, step 3).
+- **Data.** Run the playground steps 1 to 4 a few times off camera, then wait at least one 15-minute settlement run. That leaves Receipts with collected rows and gives the Render Runs page some history.
+- **Watermark.** Add `AG_STUDIO_LICENSE_KEY` to the `tab402-secrets` group on Render (the 45-day trial works) and redeploy `tab402-web`.
+- **Real model output.** `DEMO_LLM=anthropic` is already set on Render, so the summaries come from Claude. Check that the Anthropic key has credit and a spending limit.
+- **Windows.**
+  - Chrome at 1440 × 900, light theme, zoom 110%, with no bookmarks bar or other tabs.
+  - A second window on the Render dashboard at **tab402-settlement, Runs**.
+  - Do Not Disturb on except for Chrome, so only the Tab402 push shows up.
+- **Wake the services.** Render's starter plan doesn't spin services down, but open each URL once before recording, because the first request after a deploy is slower.
+- **If the hosted site is down,** record locally with `./demo/setup.sh` and `./demo/start.sh`. Replace scene 5 with `scripts/demo/settle-sandbox.ts` in a terminal at 18 pt or larger.
+- **Music and logos.** Use no music, or music you have the rights to. Keep other companies' logos off screen apart from PayPal (the sponsor) and Render. The playground keeps a third-party agent's interface off screen. If you show Claude Code instead, check the rules on trademarks first.
 
 ## Scenes
 
@@ -25,7 +32,10 @@ The story runs in one direction: a seller prices an API, an agent finds it and p
 
 ### 0:15 to 0:45 · A seller prices an API in a minute
 
-**Screen:** Selling, Add from OpenAPI. Paste `http://localhost:4200/openapi.json`, click Propose prices. The proposals appear. Change one price and confirm. Show the Gate config tab, then the Directory listing the routes.
+**Screen:** Selling, Add from OpenAPI.
+1. Paste `https://tab402-sellers.onrender.com/openapi.json` and click Propose prices.
+2. The proposals appear. Change one price and confirm.
+3. Show the Gate config tab, then the Directory listing the routes.
 
 > I'm a seller. I paste my OpenAPI spec, and Claude reads it and proposes a price for each route. It leaves the health check free. I adjust one price and confirm. Tab402 gives me a few lines of gate config for my server, and my routes are listed in the public directory where agents look for services.
 
@@ -37,27 +47,34 @@ The story runs in one direction: a seller prices an API, an agent finds it and p
 
 ### 1:15 to 1:50 · The buyer stays in control
 
-**Screen:** Turn on Ask me before every purchase. Click Summarize the note. The amber card appears and the push notification slides in. Click it, approve with Touch ID, then click Run again after approving. Then click Make a $0.02 sub-budget and Summarize with the sub-budget three times; the third is refused.
+**Screen:**
+1. Turn on Ask me before every purchase and click Summarize the note.
+2. The amber card appears and the push notification slides in. Click it, approve with Touch ID, then click Run again after approving.
+3. Click Make a $0.02 sub-budget, then Summarize with the sub-budget three times. The third is refused.
+4. Turn Ask me before every purchase off again.
 
 > The buyer decides how much freedom the agent has. With "ask me first" on, the next purchase stops and asks. A push arrives on my laptop, I approve it with my passkey, and the agent finishes the call. Agents can also hand out small sub-budgets. This one has two cents, so the third call is refused. Anything unusual, like a new seller or a sudden spike, goes to a spend guard that can approve, deny, or ask me.
 
 ### 1:50 to 2:15 · PayPal settles the tab, on Render Workflows
 
-**Screen:** The Render dashboard, tab402-settlement workflow, Runs. Open the latest `settleDueTabs` run so its `captureTab` children show, each with its status. Cut to Receipts, where the calls now say collected, then paid out.
+**Screen:** The Render dashboard, tab402-settlement, Runs. Open the latest `settleDueTabs` run so its children show with their status: `settlePrepaid` for the demo buyer, and `topUp` or `captureTab` if one ran. Cut to Receipts, where the calls from scene 3 now say collected, next to older rows that say paid out.
 
-> None of those cents went through PayPal one by one. They add up on the tab. Every fifteen minutes a Render cron job starts our settlement workflow. Each buyer's tab is captured as its own task run, in parallel, and Render retries a PayPal hiccup on its own. One merchant-initiated charge on the buyer's saved PayPal wallet covers the whole tab. Then PayPal Payouts pays the seller, and receipts move from earned to collected to paid out.
+> None of those cents went through PayPal one by one. Every fifteen minutes a Render cron job starts our settlement workflow, and each buyer's settlement runs as its own task, in parallel. Render retries a PayPal hiccup by itself. A prepaid balance is topped up from the buyer's saved PayPal wallet, and a post-paid tab is captured in one merchant-initiated charge. Then PayPal Payouts pays the seller, and receipts move from earned to collected to paid out.
 
 ### 2:15 to 2:40 · The seller sees the money
 
-**Screen:** Seller analytics, Revenue page. Point at the PayPal fees and Net to you tiles, then the gross-to-net chart. Click one slice of the revenue-by-buyer donut so the page filters. Open Edit / Ask AI and ask "Why did revenue change today vs yesterday?" Let the answer appear.
+**Screen:**
+1. Seller analytics, Revenue page. Point at the PayPal fees and Net to you tiles, then the gross-to-net chart.
+2. Click one slice of the revenue-by-buyer donut so the page filters.
+3. Open Edit / Ask AI and ask "Why did revenue change today vs yesterday?" Let the answer appear.
 
 > Back to the seller. The dashboard, built with AG Grid's AG Studio, shows what was earned, collected and paid out, and what PayPal and Tab402 took on the way to net. One click on a buyer filters the whole page. And I can ask why revenue changed. The revenue agent queries my data and names the endpoints behind it.
 
 ### 2:40 to 2:45 · Close
 
-**Screen:** Landing page hero, with the repo URL as a caption: github.com/0xhaz/Tab402.
+**Screen:** Landing page hero, with two captions: tab402-web.onrender.com and github.com/0xhaz/Tab402.
 
-> Tab402. Agents pay by the cent, and the money settles on PayPal.
+> Tab402. Agents pay by the cent, and the money settles on PayPal. Try it at the link below.
 
 ## If you run long
 
@@ -75,5 +92,6 @@ Cut in this order:
 | Seller prices an API | Onboarding agent, gate config, directory | Claude Sonnet 5.5 |
 | Agent pays | MCP server, x402 handshake, signed vouchers, live receipts | Model Context Protocol |
 | Buyer in control | Approvals, passkeys, Web Push, sub-budgets, spend guard | Claude Haiku 4.5 (spend guard) |
-| PayPal settles | One capture per tab, payouts, money states | Render Workflows and Cron Jobs, PayPal Vault v3, Orders v2, Payouts |
+| PayPal settles | Prepaid top-ups, one capture per tab, payouts, money states | Render Workflows and Cron Jobs, PayPal Vault v3, Orders v2, Payouts |
 | Seller sees money | Revenue dashboard, cross-filtering, revenue agent | AG Studio (AG Grid), Claude Sonnet 5.5 |
+| Close | Hosted on Render | Render web services, worker, Postgres |
