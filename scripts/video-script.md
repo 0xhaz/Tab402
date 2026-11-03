@@ -41,9 +41,9 @@ Everything is recorded on the hosted site, https://tab402-web.onrender.com, so j
 
 ### 0:45 to 1:15 · An agent finds it and pays
 
-**Screen:** Agent playground. Click Check my budget, Find a summarizer, Summarize the note. Then switch to Receipts in a second tab, where the new row appears.
+**Screen:** Agent playground. Click Check my budget, Find a summarizer, Summarize the note, then Chat (metered). Point at the chat's `paid.amount`, a fraction of a cent. Then switch to Receipts in a second tab, where the new rows appear.
 
-> Now the buyer's side. This is an agent connected over MCP, the same protocol Claude Code and other agents use. It checks its budget, searches the directory, and finds my summarizer at one cent. It calls the API, gets a 402 Payment Required, signs a voucher on its tab, and gets the summary back. On the buyer's Receipts page the charge shows up a few seconds later, with what the agent said it was buying.
+> Now the buyer's side. This agent connects over MCP, the protocol Claude Code and other agents use. It checks its budget and finds my summarizer at one cent. It calls the API, gets a 402 Payment Required, signs a voucher on its tab, and gets the summary back. A metered chat is charged its real cost, less than a tenth of a cent. Each charge reaches the buyer's Receipts within seconds.
 
 ### 1:15 to 1:50 · The buyer stays in control
 
@@ -58,11 +58,11 @@ Everything is recorded on the hosted site, https://tab402-web.onrender.com, so j
 ### 1:50 to 2:15 · PayPal settles the tab
 
 **Screen:**
-1. In the playground, click Show my tab (button 8). The Activity column shows what the agent owes each seller. Settlement runs at :00, :15, :30 and :45 and empties the tab, so record scenes 3 to 5 in one take that starts just after one of those times.
+1. In the playground, click Show my tab (button 8). The Activity column shows the open total and the number of calls from scenes 3 and 4, including the metered chat at its real cost. Settlement runs at :00, :15, :30 and :45 and empties the tab, so record scenes 3 to 5 in one take that starts just after one of those times.
 2. Open Wallet. Point at the saved PayPal wallet and the prepaid balance, then click Top up. Cut the few seconds the sandbox takes.
-3. Open Receipts. The calls from scene 3 say collected, next to older rows that say paid out.
+3. Open Receipts. Today's calls say earned, next to older rows that say collected and paid out.
 
-> None of those cents went through PayPal one by one. The agent can see its tab, what it owes each seller. I saved my PayPal wallet once, with PayPal Vault, so Tab402 can charge it without a checkout page. My balance tops up in one merchant-initiated charge. Then PayPal Payouts pays the seller, and receipts move from earned to collected to paid out.
+> None of those cents went through PayPal one by one. They add up on the agent's tab, the summaries and that tiny chat alike. I saved my PayPal wallet once, with PayPal Vault, so Tab402 can charge it without a checkout page. My balance tops up in one merchant-initiated charge. Then PayPal Payouts pays the seller, and receipts move from earned to collected to paid out.
 
 ### 2:15 to 2:40 · The seller sees the money
 
@@ -93,7 +93,7 @@ Cut in this order:
 |---|---|---|
 | The problem | Fee comparison | |
 | Seller prices an API | Onboarding agent, gate config, directory | Claude Sonnet 5.5 |
-| Agent pays | MCP server, x402 handshake, signed vouchers, live receipts | Model Context Protocol |
+| Agent pays | MCP server, x402 handshake, signed vouchers, fixed and metered pricing, live receipts | Model Context Protocol |
 | Buyer in control | Approvals, passkeys, Web Push, sub-budgets, spend guard | Claude Haiku 4.5 (spend guard) |
 | Buyer in control (narration) | Settlement every 15 minutes | Render Workflows and Cron Jobs |
 | PayPal settles | The agent's tab, saved wallet, prepaid top-up, money states | PayPal Vault v3, Orders v2, Payouts |
