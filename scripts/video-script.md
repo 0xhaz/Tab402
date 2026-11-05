@@ -9,7 +9,7 @@ Everything is recorded on the hosted site, https://tab402-web.onrender.com, so j
 ## Before you record
 
 - **Sign in.** Use the shared account (`buyer@example.com`) on https://tab402-web.onrender.com. Record before you share the login with judges. If they already have it, check that **Ask me before every purchase** is off and the Playground agent is active.
-- **Set up this machine.** Passkeys are per device, so add one on the recording machine under **Security & alerts**. Turn on notifications in Chrome there too.
+- **Set up this machine.** Passkeys are per device, so add one on the recording machine under **Security & alerts**. Turn on notifications in Chrome there too, and turn on **Email me approval requests** with your Gmail address. The worker on Render needs `GMAIL_USER` and `GMAIL_APP_PASSWORD` in `tab402-secrets`. Send one test approval off camera and check it arrives.
 - **Seller link.** The demo seller must already be linked to the shared account (README, Deploy on Render, step 3).
 - **Wallet.** Save a PayPal sandbox wallet on **Wallet**, and try **Top up** once off camera. Scene 5 needs both, and the sandbox app needs Vault turned on.
 - **Data.** Run the playground steps 1 to 4 a few times off camera, then wait at least one 15-minute settlement run, so Receipts has collected rows next to the new ones.
@@ -49,11 +49,11 @@ Everything is recorded on the hosted site, https://tab402-web.onrender.com, so j
 
 **Screen:**
 1. Turn on Ask me before every purchase and click Summarize the note.
-2. The amber card appears and the push notification slides in. Click it, approve with Touch ID, then click Run again after approving.
+2. The amber card appears and the push notification slides in. The email arrives too, but keep the mail app off screen. Click the push, approve with Touch ID, then click Run again after approving.
 3. Turn Ask me before every purchase off again, or every sub-budget call would stop for approval too.
 4. Click Make a $0.02 sub-budget (button 5), then Summarize with the sub-budget (button 6) three times. The first two pay and the third is refused.
 
-> The buyer decides how much freedom the agent has. With "ask me first" on, the next purchase stops and asks. A push arrives on my laptop, I approve it with my passkey, and the agent finishes the call. Agents can also hand out small sub-budgets. This one has two cents, so the third call is refused. Anything unusual, like a new seller or a sudden spike, goes to a spend guard that can approve, deny, or ask me. And the tab settles by itself from a Render workflow that runs every fifteen minutes.
+> The buyer decides how much freedom the agent has. With "ask me first" on, the next purchase stops and asks. A push arrives on my laptop and an email in my inbox. I approve with my passkey, and the agent finishes the call. Agents can also hand out small sub-budgets. This one has two cents, so the third call is refused. Anything unusual, like a new seller or a sudden spike, goes to a spend guard that can approve, deny, or ask me. And the tab settles by itself from a Render workflow that runs every fifteen minutes.
 
 ### 1:50 to 2:15 · PayPal settles the tab
 
@@ -94,7 +94,7 @@ Cut in this order:
 | The problem | Fee comparison | |
 | Seller prices an API | Onboarding agent, gate config, directory | Claude Sonnet 5.5 |
 | Agent pays | MCP server, x402 handshake, signed vouchers, fixed and metered pricing, live receipts | Model Context Protocol |
-| Buyer in control | Approvals, passkeys, Web Push, sub-budgets, spend guard | Claude Haiku 4.5 (spend guard) |
+| Buyer in control | Approvals, passkeys, Web Push and email alerts, sub-budgets, spend guard | Claude Haiku 4.5 (spend guard), Gmail SMTP |
 | Buyer in control (narration) | Settlement every 15 minutes | Render Workflows and Cron Jobs |
 | PayPal settles | The agent's tab, saved wallet, prepaid top-up, money states | PayPal Vault v3, Orders v2, Payouts |
 | Seller sees money | Revenue dashboard, cross-filtering, revenue agent | AG Studio (AG Grid), Claude Sonnet 5.5 |

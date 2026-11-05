@@ -218,8 +218,8 @@ export default async function WelcomePage() {
             <Feature icon={Fingerprint} title="Passkey approval">
               Purchases over your limit wait for Face ID or Touch ID.
             </Feature>
-            <Feature icon={Bell} title="Push alerts">
-              Approval requests and payouts show up on your phone.
+            <Feature icon={Bell} title="Push and email alerts">
+              Approval requests reach your phone or inbox. Decline right from the email.
             </Feature>
             <Feature icon={Bot} title="Works in Claude">
               Add one MCP URL and sign in with OAuth.

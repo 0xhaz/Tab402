@@ -94,11 +94,11 @@ Open the web app in a private window. The landing page has a slider that compare
 
 ### 2. Sign in
 
-**Hosted site.** Click **Sign in** and use the shared demo login. Then open **Security & alerts** and add a passkey (Touch ID or your device PIN). Approvals are confirmed with a passkey, and a passkey on another judge's device won't work on yours. Turning on notifications here is optional. On a shared account, approval pushes go to every browser that turned them on.
+**Hosted site.** Click **Sign in** and use the shared demo login. Then open **Security & alerts** and add a passkey (Touch ID or your device PIN). Approvals are confirmed with a passkey, and a passkey on another judge's device won't work on yours. Turning on notifications here is optional. On a shared account, approval pushes go to every browser that turned them on. You can also turn on **Email me approval requests** and enter your own address. The account has one address, so turn it off when you're done.
 
 **Localhost.** Click **Get started** and sign up with the email `buyer@example.com`, any name and any password of 10 or more characters. That email claims the seeded demo buyer, which already has a $10 prepaid balance and an agent. Two optional extras:
 
-- **Security & alerts**: add a passkey and turn on notifications. Approval requests then arrive as a push, and you approve with the passkey.
+- **Security & alerts**: add a passkey and turn on notifications. Approval requests then arrive as a push, and you approve with the passkey. With `GMAIL_USER` and `GMAIL_APP_PASSWORD` in `.env`, you can turn on **Email me approval requests** as well.
 - **Wallet**: save a PayPal sandbox wallet with the sandbox personal account. The PayPal popup uses the JS SDK v6 save flow and stores a Vault token.
 
 You land on **Overview**, which shows the balance.
@@ -120,7 +120,7 @@ Keep **Receipts** open in another tab. New rows appear within a few seconds with
 
 Back in the playground, turn on **Ask me before every purchase**. That sets the approval threshold to half a cent, so every call now needs your OK.
 
-Click **Summarize the note** again. The card turns amber and shows **Open approval page**. If notifications are on, a push arrives too. Approve with your passkey, then click **Run again after approving**. The call goes through and is charged once. Try it again and press **Decline** instead: the agent is told it was declined and nothing is charged.
+Click **Summarize the note** again. The card turns amber and shows **Open approval page**. If notifications are on, a push arrives too. With email on, an email arrives with **Review and approve** and **Decline** buttons. Decline from the email works without signing in, after one click on the page it opens. Approve with your passkey, then click **Run again after approving**. The call goes through and is charged once. Try it again and press **Decline** instead: the agent is told it was declined and nothing is charged.
 
 Turn the switch off when you're done.
 
@@ -228,6 +228,7 @@ Then ask *"Find a paid API that can summarize text and use it on this note: …"
 | Both | Opening `/v1/summarize` on the demo seller gives 404 | Expected. It only accepts a paid POST from an agent |
 | Both | PayPal steps take 5 to 15 seconds | The sandbox is slow at times |
 | Hosted | "Passkey check was cancelled" when approving | Add your own passkey under **Security & alerts**, then approve again |
+| Both | No approval email arrives | Check spam, and that **Email me approval requests** is on with the right address. Locally, the worker log says `approval emails are off` when the Gmail settings are missing |
 | Hosted | Every call asks for approval as soon as you arrive | Another judge left **Ask me before every purchase** on. Turn it off |
 | Hosted | The agent's calls are refused with `no_mandate` | You're on your own account. Save a wallet on **Wallet** first |
 | Hosted | The API or seller root URL gives 404 | Expected. Use `/docs` on the API and `/openapi.json` on the seller |
