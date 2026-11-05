@@ -3,13 +3,14 @@ import { eq } from "drizzle-orm";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { db, requireBuyer } from "@/lib/server";
+import { EmailSettings } from "./email-settings";
 import { PasskeyList } from "./passkeys";
 import { PushSettings } from "./push-settings";
 
 export const metadata = { title: "Security" };
 
 export default async function SecurityPage() {
-  const { user } = await requireBuyer("/security");
+  const { user, buyer } = await requireBuyer("/security");
   const [keys, devices] = await Promise.all([
     db.select().from(s.passkey).where(eq(s.passkey.userId, user.id)),
     db.select().from(s.pushSubscriptions).where(eq(s.pushSubscriptions.userId, user.id)),
@@ -53,6 +54,17 @@ export default async function SecurityPage() {
               lastSuccessAt: d.lastSuccessAt?.toISOString() ?? null,
             }))}
           />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Email</CardTitle>
+          <CardDescription>
+            Get approval requests by email too, for when push isn't set up on a device.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <EmailSettings current={buyer.approvalEmail} accountEmail={user.email} />
         </CardContent>
       </Card>
     </>

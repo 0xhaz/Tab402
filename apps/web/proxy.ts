@@ -18,6 +18,6 @@ export function proxy(request: NextRequest) {
 export const config = {
   // Everything except auth pages, the auth API, OAuth discovery, and static assets.
   matcher: [
-    "/((?!sign-in|sign-up|welcome|directory|~offline|serwist|icons|manifest\\.webmanifest|api/auth|\\.well-known|_next|favicon\\.ico|.*\\.(?:png|svg|ico|webmanifest)$).*)",
+    "/((?!sign-in|sign-up|welcome|directory|decline|~offline|serwist|icons|manifest\\.webmanifest|api/auth|\\.well-known|_next|favicon\\.ico|.*\\.(?:png|svg|ico|webmanifest)$).*)",
   ],
 };

@@ -215,3 +215,4 @@ export function isAllowedPushEndpoint(endpoint: string, extraHosts: string[] = [
     h.startsWith(".") ? u.hostname.endsWith(h) : u.hostname === h,
   );
 }
+export * from "./email";

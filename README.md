@@ -271,7 +271,7 @@ To connect Claude Code to the hosted MCP server, run `claude mcp add --transport
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/0xhaz/Tab402)
 
-[render.yaml](render.yaml) is a Blueprint for everything: four web services, the background worker, the settlement workflow, a cron job and Postgres 18. In the Render dashboard choose **New, Blueprint**, pick this repo, and give the cron job a Render API key when asked. Render can't prompt for secrets inside an environment group, so add the rest by hand under **Environment Groups, tab402-secrets, Edit**: the PayPal sandbox app, Anthropic key, demo API keys and VAPID keys (the list and commands are in `render.yaml`). `TAB402_MASTER_KEY` and `BETTER_AUTH_SECRET` are generated. Migrations and the seed run before each API deploy.
+[render.yaml](render.yaml) is a Blueprint for everything: four web services, the background worker, the settlement workflow, a cron job and Postgres 18. In the Render dashboard choose **New, Blueprint**, pick this repo, and give the cron job a Render API key when asked. Render can't prompt for secrets inside an environment group, so add the rest by hand under **Environment Groups, tab402-secrets, Edit**: the PayPal sandbox app, Anthropic key, demo API keys, VAPID keys and, for approval emails, a Gmail address with an App Password (the list and commands are in `render.yaml`). `TAB402_MASTER_KEY` and `BETTER_AUTH_SECRET` are generated. Migrations and the seed run before each API deploy.
 
 ```mermaid
 flowchart LR

@@ -11,6 +11,7 @@
     "@playwright/test": "1.63.0",
     "@tab402/core": "workspace:*",
     "@tab402/db": "workspace:*",
+    "@tab402/notify": "workspace:*",
     "drizzle-orm": "0.45.3"
   },
   "devDependencies": {

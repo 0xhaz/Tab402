@@ -39,6 +39,7 @@ envVarGroups:
   #   DEMO_BUYER_API_KEY   same command with t402_bk_
   #   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY   npx tsx scripts/vapid.ts
   #   AG_STUDIO_LICENSE_KEY (optional)
+  #   GMAIL_USER, GMAIL_APP_PASSWORD (optional)   approval emails, sent by the worker
   #   PAYPAL_WEBHOOK_ID    after creating the webhook for https://tab402-api.onrender.com/webhooks/paypal
   - name: tab402-secrets
     envVars:

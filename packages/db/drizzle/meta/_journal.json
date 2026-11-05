@@ -57,6 +57,13 @@
       "when": 1791098500796,
       "tag": "0007_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793872057834,
+      "tag": "0008_approval_email",
+      "breakpoints": true
     }
   ]
 }

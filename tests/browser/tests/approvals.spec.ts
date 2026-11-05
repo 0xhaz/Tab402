@@ -1,6 +1,7 @@
 import { type CDPSession, expect, type Page, test } from "@playwright/test";
 import { generateAgentKeyPair, newId } from "@tab402/core";
 import { schema as s } from "@tab402/db";
+import { declineToken } from "@tab402/notify";
 import { eq } from "drizzle-orm";
 import { close, db, signUp } from "./helpers";
 
@@ -132,4 +133,45 @@ test("someone else's approval is not visible", async ({ page }) => {
   await signUp(page);
   const res = await page.goto(`/approve/${id}`);
   expect(res?.status()).toBe(404);
+});
+
+test("buyer turns on approval emails, and Save says so", async ({ page }) => {
+  const { buyerId } = await signUp(page);
+  await page.goto("/security");
+  await page.getByRole("switch", { name: "Email me approval requests" }).click();
+  await expect(page.getByText(/Approval requests will be emailed to/)).toBeVisible();
+  await page.getByLabel("Send them to").fill("pat.buyer@gmail.example");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(
+    page.getByText("Approval requests will be emailed to pat.buyer@gmail.example."),
+  ).toBeVisible();
+  const email = async () =>
+    (await db.select().from(s.buyers).where(eq(s.buyers.id, buyerId)))[0]?.approvalEmail;
+  expect(await email()).toBe("pat.buyer@gmail.example");
+
+  await page.getByRole("switch", { name: "Email me approval requests" }).click();
+  await expect(page.getByText("Approval emails are off.")).toBeVisible();
+  expect(await email()).toBeNull();
+});
+
+test("the emailed Decline link works signed out, but only after a click", async ({
+  page,
+  browser,
+}) => {
+  const { buyerId } = await signUp(page);
+  const id = await pendingApproval(buyerId);
+  const secret = process.env.BETTER_AUTH_SECRET as string;
+
+  const inbox = await browser.newPage(); // no session, like a phone's mail app
+  await inbox.goto(`/decline/${id}?t=wrong`);
+  await expect(inbox.getByText("This link isn't valid.")).toBeVisible();
+  expect(await status(id)).toBe("pending");
+
+  await inbox.goto(`/decline/${id}?t=${declineToken(secret, id)}`);
+  await expect(inbox.getByText("$2.50")).toBeVisible();
+  expect(await status(id)).toBe("pending"); // opening the link (or a mail scanner) does nothing
+  await inbox.getByRole("button", { name: "Decline this purchase" }).click();
+  await expect(inbox.getByText("Declined. Nothing was charged")).toBeVisible();
+  expect(await status(id)).toBe("denied");
+  await inbox.close();
 });

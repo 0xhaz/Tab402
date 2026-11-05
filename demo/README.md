@@ -218,6 +218,7 @@ Then ask *"Find a paid API that can summarize text and use it on this note: …"
 | `settle-sandbox.ts` (real capture and payout) | PayPal sandbox app with Vault and Payouts enabled |
 | Spend guard model, pricing agent, revenue agent, real summaries | `ANTHROPIC_API_KEY`. Without it, labelled stand-ins answer |
 | Push notifications | VAPID keys (`setup.sh` generates them) and Chrome |
+| Approval emails | `GMAIL_USER` and `GMAIL_APP_PASSWORD` (a Google App Password) for the worker, then **Email me approval requests** under Security & alerts |
 | No dashboard watermark | `AG_STUDIO_LICENSE_KEY` |
 
 ## Troubleshooting

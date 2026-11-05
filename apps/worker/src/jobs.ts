@@ -26,7 +26,12 @@ import {
   unreconciledSettlements,
   writeOffSettlement,
 } from "@tab402/ledger";
-import { deliverNotifications, type PushSender } from "@tab402/notify";
+import {
+  deliverApprovalEmails,
+  deliverNotifications,
+  type EmailSender,
+  type PushSender,
+} from "@tab402/notify";
 import type { FundingAdapter, PayoutAdapter, PayPalWebhookEvent } from "@tab402/paypal";
 import { payPalToMicros } from "@tab402/paypal";
 import { and, eq, isNotNull, isNull, lte } from "drizzle-orm";
@@ -49,6 +54,8 @@ export interface WorkerDeps {
   now?: () => Date;
   /** Web Push (VAPID). Without it, notifications stay queued until push is configured. */
   push?: PushSender;
+  /** Approval emails (Gmail SMTP). Links point at webUrl; decline links are signed with secret. */
+  email?: { sender: EmailSender; webUrl: string; secret: string };
 }
 
 const RETRY_CAPTURE_AFTER_SECONDS = 24 * 3600;
@@ -293,8 +300,13 @@ export function createJobs(deps: WorkerDeps) {
     },
 
     /** Hourly: captures still unconfirmed after an hour are checked against PayPal. */
-    /** Push notifications from the outbox (approvals, payouts, failed captures). */
+    /** Push notifications from the outbox (approvals, payouts, failed captures), plus approval emails. */
     async [JOBS.pushSend]() {
+      if (deps.email) {
+        const { sender, webUrl, secret } = deps.email;
+        const r = await deliverApprovalEmails(deps.db, sender, { webUrl, secret, now });
+        if (r.sent || r.failed) deps.log.info(r, "approval emails delivered");
+      }
       if (!deps.push) return;
       for (let i = 0; i < 10; i++) {
         const r = await deliverNotifications(deps.db, deps.push, { now });

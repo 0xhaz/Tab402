@@ -1,6 +1,6 @@
 import { createDb, NOTIFY_CHANNEL, parseMasterKey } from "@tab402/db";
 import { DEFAULT_LEDGER_CONFIG, JOBS, type JobName } from "@tab402/ledger";
-import { vapidFromEnv, WebPushSender } from "@tab402/notify";
+import { GmailSender, gmailFromEnv, vapidFromEnv, WebPushSender } from "@tab402/notify";
 import { PayPalClient, PayPalPayouts, PayPalWalletFunding } from "@tab402/paypal";
 import { PgBoss } from "pg-boss";
 import { createJobs, SCHEDULES } from "./jobs";
@@ -15,6 +15,18 @@ const env = (name: string) => {
 const { db, sql } = createDb(env("DATABASE_URL"));
 const vapid = vapidFromEnv();
 if (!vapid) logger.warn("VAPID keys not set: push notifications stay queued (pnpm vapid)");
+const gmail = gmailFromEnv();
+const emailSecret = process.env.BETTER_AUTH_SECRET;
+if (!gmail) logger.warn("GMAIL_USER / GMAIL_APP_PASSWORD not set: approval emails are off");
+else if (!emailSecret) logger.warn("BETTER_AUTH_SECRET not set: approval emails are off");
+const email =
+  gmail && emailSecret
+    ? {
+        sender: new GmailSender(gmail),
+        webUrl: process.env.WEB_URL || "http://localhost:3000",
+        secret: emailSecret,
+      }
+    : undefined;
 const paypal = new PayPalClient({
   clientId: env("PAYPAL_CLIENT_ID"),
   clientSecret: env("PAYPAL_CLIENT_SECRET"),
@@ -36,6 +48,7 @@ const handlers = createJobs({
     await boss.send(name, data, options);
   },
   push: vapid ? new WebPushSender(vapid) : undefined,
+  email,
 });
 
 for (const name of Object.values(JOBS) as JobName[]) {
@@ -72,7 +85,7 @@ const pushNow = () => {
       }
     });
 };
-if (vapid) await sql.listen(NOTIFY_CHANNEL, pushNow, pushNow);
+if (vapid || email) await sql.listen(NOTIFY_CHANNEL, pushNow, pushNow);
 
 logger.info(
   { queues: Object.values(JOBS).length, settlement: onRender ? "render-workflows" : "pg-boss" },

@@ -121,6 +121,8 @@ export const buyers = pgTable("buyers", {
   email: text("email").notNull(),
   /** Sub-cent remainder of past captures still owed; added to the next capture (PayPal moves whole cents). */
   carryMicros: micros("carry_micros").notNull().default(0),
+  /** Where approval requests are emailed (worker, Gmail SMTP). Null means email is off. */
+  approvalEmail: text("approval_email"),
   createdAt: createdAt(),
 });
 
@@ -710,6 +712,9 @@ export const notifications = pgTable(
     devices: integer("devices"),
     attempts: integer("attempts").notNull().default(0),
     lastError: text("last_error"),
+    /** Email copy (approval requests only): when it was handled, and why it wasn't sent if so. */
+    emailSentAt: tsz("email_sent_at"),
+    emailError: text("email_error"),
   },
   (t) => [index("notifications_pending_idx").on(t.createdAt).where(sql`${t.sentAt} is null`)],
 );
