@@ -190,6 +190,42 @@ describe("onboarding agent", () => {
     });
   });
 
+  it("keeps health and docs routes free even when the model charges them", async () => {
+    const spec = JSON.stringify({
+      openapi: "3.1.0",
+      info: { title: "Free routes" },
+      servers: [{ url: "https://free.example.com/tools" }],
+      paths: {
+        "/health": { get: { summary: "Health" } },
+        "/openapi.json": { get: { summary: "Spec" } },
+        "/v1/healthy-recipes": { get: { summary: "Recipes" } },
+      },
+    });
+    const chargeAll: OnboardingModel = {
+      async propose(input) {
+        return {
+          model: "charge-all",
+          latencyMs: 1,
+          proposals: input.operations.map((o) => ({
+            key: o.key,
+            charge: true,
+            category: "lookup" as const,
+            priceMicros: 1_000,
+            description: o.key,
+            rationale: "Free utility route, so no charge.",
+          })),
+        };
+      },
+    };
+    const o = await proposePricing({ db, model: chargeAll }, { sellerId, specText: spec });
+    const charge = Object.fromEntries(o.proposals.map((p) => [p.key, p.charge]));
+    expect(charge).toEqual({
+      "GET /health": false,
+      "GET /openapi.json": false,
+      "GET /v1/healthy-recipes": true,
+    });
+  });
+
   it("confirming registers endpoints (upsert) and records what the human changed", async () => {
     const o = await proposePricing(
       { db, model: new MockOnboardingModel() },

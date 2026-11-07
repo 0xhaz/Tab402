@@ -24,6 +24,7 @@
   },
   "exports": {
     "./app": "./src/app.ts",
-    "./llm": "./src/llm.ts"
+    "./llm": "./src/llm.ts",
+    "./tools": "./src/tools.ts"
   }
 }

@@ -8,6 +8,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { costMicros, type Llm, LlmRefusal } from "./llm";
 import { logger } from "./logger";
+import { mountTools } from "./tools";
 
 /** Our own demo sellers: one fixed-price API and one metered AI-model endpoint. */
 export const DEMO_ROUTES = {
@@ -114,6 +115,8 @@ export function createApp({ gate, llm }: DemoSellerDeps): Hono<{ Variables: Gate
     logger.error({ err, path: c.req.path }, "request failed");
     return c.json({ error: "the model is unavailable, try again" }, 502);
   });
+
+  mountTools(app, { gate, llm });
 
   app.post("/v1/summarize", async (c) => {
     const body = SummarizeBody.safeParse(await c.req.json().catch(() => null));

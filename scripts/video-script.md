@@ -10,6 +10,7 @@ Everything is recorded on the hosted site, https://tab402-web.onrender.com, so j
 
 - **Sign in.** Use the shared account (`buyer@example.com`) on https://tab402-web.onrender.com. Record before you share the login with judges. If they already have it, check that **Ask me before every purchase** is off and the Playground agent is active.
 - **Set up this machine.** Passkeys are per device, so add one on the recording machine under **Security & alerts**. Turn on notifications in Chrome there too, and turn on **Email me approval requests** with your Gmail address. The worker on Render needs `GMAIL_USER` and `GMAIL_APP_PASSWORD` in `tab402-secrets`. Send one test approval off camera and check it arrives.
+- **Reset the seller scene.** Each take onboards Text Tools for real. Before the next take, run `DATABASE_URL=<tab402-db External Database URL> DEMO_SELLERS_URL=https://tab402-sellers.onrender.com npx tsx scripts/demo/reset-text-tools.ts` from the repo root, so the routes start unpriced again.
 - **Seller link.** The demo seller must already be linked to the shared account (README, Deploy on Render, step 3).
 - **Wallet.** Save a PayPal sandbox wallet on **Wallet**, and try **Top up** once off camera. Scene 5 needs both, and the sandbox app needs Vault turned on.
 - **Data.** Run the playground steps 1 to 4 a few times off camera, then wait at least one 15-minute settlement run, so Receipts has collected rows next to the new ones.
@@ -28,16 +29,16 @@ Everything is recorded on the hosted site, https://tab402-web.onrender.com, so j
 
 **Screen:** Landing page hero, then scroll to "Why a tab?" and drag the slider to 1,000 calls.
 
-> AI agents want to buy API calls for a cent each. Card rails can't do that: a fee of about fifty cents per charge eats the whole cent. Tab402 lets agents pay per call, keeps a running tab, and settles it on PayPal in one charge.
+> AI agents want to buy API calls for a cent each. The classic payment rails can't do that: a fee of about fifty cents per charge can eats the whole cent. Tab402 lets agents pay per call, keeps a running tab, and settles it on PayPal in one charge.
 
 ### 0:15 to 0:45 · A seller prices an API in a minute
 
-**Screen:** Selling, Add from OpenAPI.
-1. Paste the spec JSON and click Propose prices. Copy it beforehand from https://tab402-sellers.onrender.com/openapi.json, because the box takes the spec itself, not its URL.
-2. The proposals appear. Change one price and confirm.
-3. Show the Gate config tab, then the Directory listing the routes.
+**Screen:** Selling, Add from OpenAPI. The API on camera is **Tab402 Text Tools** (translate and keywords), a second demo API on the seller service that has no prices until you confirm them. Don't use the Demo Sellers spec here: its routes are already live, so onboarding it again stops with a warning.
+1. Paste the spec JSON and click Propose prices. Copy it beforehand from https://tab402-sellers.onrender.com/tools/openapi.json, because the box takes the spec itself, not its URL. The base URL fills in as `https://tab402-sellers.onrender.com/tools`.
+2. The proposals appear, with the health check left free. Change the keywords price and click Confirm.
+3. Show the Gate config tab, then the Directory, where translate and keywords now sit next to the summarizer.
 
-> Right now I'm a seller. And I will paste my OpenAPI spec, and Claude reads it and proposes a price for each route and it will leaves the health check free. I adjust one price and confirm. Tab402 gives me a few lines of gate config for my server, and my routes are listed in the public directory where agents look for services.
+> Now I'm a seller. I paste my OpenAPI spec, and Claude reads it and proposes a price for each route. It leaves the health check free. I change one price and confirm. Tab402 gives me a few lines of gate config for my server, and my routes show up in the public directory where agents look for services.
 
 ### 0:45 to 1:15 · An agent finds it and pays
 

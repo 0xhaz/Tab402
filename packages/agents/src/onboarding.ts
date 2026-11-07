@@ -212,7 +212,7 @@ export async function proposePricing(
       key: op.key,
       method: op.method,
       path: op.path,
-      charge: p?.charge ?? true,
+      charge: FREE_ROUTE.test(op.path) ? false : (p?.charge ?? true),
       category,
       pricing: d.pricing,
       priceMicros: clampPrice(category, p?.priceMicros ?? d.defaultMicros),
@@ -249,6 +249,12 @@ export async function proposePricing(
   const { operations: _o, ...meta } = api;
   return { aiDecisionId, api: meta, proposals, model: result.model };
 }
+
+/**
+ * Routes nobody should pay for, kept free in code whatever the model answers: health checks and
+ * API docs. The seller can still switch one on.
+ */
+export const FREE_ROUTE = /(^|\/)(health|healthz|ping|docs|openapi(\.json|\.yaml)?)(\/|$)/i;
 
 /** What the seller confirmed, per route. */
 export interface ConfirmedRoute {
