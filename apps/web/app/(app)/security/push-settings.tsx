@@ -4,6 +4,7 @@ import { Bell, BellOff, Smartphone } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { LocalDate } from "@/components/local-date";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
@@ -195,9 +196,13 @@ export function PushSettings({
               <div className="min-w-0 flex-1">
                 <div className="truncate">{d.label}</div>
                 <div className="text-xs text-muted-foreground">
-                  added {new Date(d.createdAt).toLocaleDateString()}
-                  {d.lastSuccessAt &&
-                    ` · last delivered ${new Date(d.lastSuccessAt).toLocaleString()}`}
+                  added <LocalDate iso={d.createdAt} />
+                  {d.lastSuccessAt && (
+                    <>
+                      {" · last delivered "}
+                      <LocalDate iso={d.lastSuccessAt} time />
+                    </>
+                  )}
                 </div>
               </div>
               <Button variant="ghost" size="sm" onClick={() => forget(d.id)}>

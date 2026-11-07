@@ -4,6 +4,7 @@ import { authClient } from "@tab402/auth/client";
 import { Fingerprint, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { LocalDate } from "@/components/local-date";
 import { Button } from "@/components/ui/button";
 import { removePasskey } from "./actions";
 
@@ -26,7 +27,12 @@ export function PasskeyList({
               {k.name}
               <span className="ml-2 text-xs text-muted-foreground">
                 {k.deviceType === "multiDevice" ? "synced" : "this device"}
-                {k.createdAt && ` · added ${new Date(k.createdAt).toLocaleDateString()}`}
+                {k.createdAt && (
+                  <>
+                    {" · added "}
+                    <LocalDate iso={k.createdAt} />
+                  </>
+                )}
               </span>
             </span>
             <Button
